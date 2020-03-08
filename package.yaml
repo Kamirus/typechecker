@@ -1,58 +1,63 @@
-name:                typechecker
-version:             0.1.0.0
-github:              "kamirus/typechecker"
-license:             MIT
-author:              "Kamil Listopad"
-copyright:           "2020 Kamil Listopad"
-
-extra-source-files:
-- README.md
-
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-
-dependencies:
-- base >= 4.7 && < 5
-
 library:
   source-dirs: src
-
-executables:
-  typechecker-exe:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - typechecker
-
+  default-extensions:
+  - ConstraintKinds
+  - DataKinds
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DerivingStrategies
+  - EmptyDataDecls
+  - FlexibleContexts
+  - KindSignatures 
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - PatternGuards
+  - PatternSynonyms
+  - RankNTypes
+  - RecordWildCards
+  - ScopedTypeVariables
+  - TupleSections
 tests:
   typechecker-test:
-    main:                Spec.hs
-    source-dirs:         test
+    source-dirs: test
+    main: Spec.hs
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
     - typechecker
-
+copyright: 2020 Kamil Listopad
 ghc-options:
 - -Weverything
-# - -Wno-missing-exported-signatures
-# - -Wno-missing-import-lists
-# - -Wno-missing-export-lists
-# - -Wno-missed-specialisations
-# - -Wno-all-missed-specialisations
 - -Wno-unsafe
 - -Wno-safe
-# - -Wno-missing-local-signatures
-# - -Wno-monomorphism-restriction
-# - -Wno-implicit-prelude
+- -Wno-missing-import-lists
+- -Wno-missing-export-lists
+- -Wno-missing-local-signatures
+dependencies:
+- data-fix
+- base >= 4.7 && < 5
+- protolude
+- data-fix
+name: typechecker
+version: 0.1.0.0
+extra-source-files:
+- README.md
+author: Kamil Listopad
+github: kamirus/typechecker
+license: MIT
+executables:
+  typechecker-exe:
+    source-dirs: app
+    main: Main.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - typechecker

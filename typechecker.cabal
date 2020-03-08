@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 65e56e3273fe629d925c5c186e8ab030469f50cdc693e342231d03ab632ecd4f
+-- hash: ae066df955b9cae610be20bd53d3b7fc2c39733c42c45a1fc67cf3e3c5456054
 
 name:           typechecker
 version:        0.1.0.0
@@ -25,14 +25,22 @@ source-repository head
 
 library
   exposed-modules:
+      Language.Term
+      Language.Type
+      Language.TypeChecker.Context
+      Language.TypeChecker.Types
+      Language.Utils
       Lib
   other-modules:
       Paths_typechecker
   hs-source-dirs:
       src
-  ghc-options: -Weverything -Wno-unsafe -Wno-safe
+  default-extensions: ConstraintKinds DataKinds DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies EmptyDataDecls FlexibleContexts KindSignatures LambdaCase MultiParamTypeClasses NoImplicitPrelude OverloadedStrings PatternGuards PatternSynonyms RankNTypes RecordWildCards ScopedTypeVariables TupleSections
+  ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures
   build-depends:
       base >=4.7 && <5
+    , data-fix
+    , protolude
   default-language: Haskell2010
 
 executable typechecker-exe
@@ -41,9 +49,11 @@ executable typechecker-exe
       Paths_typechecker
   hs-source-dirs:
       app
-  ghc-options: -Weverything -Wno-unsafe -Wno-safe -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , data-fix
+    , protolude
     , typechecker
   default-language: Haskell2010
 
@@ -54,8 +64,10 @@ test-suite typechecker-test
       Paths_typechecker
   hs-source-dirs:
       test
-  ghc-options: -Weverything -Wno-unsafe -Wno-safe -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , data-fix
+    , protolude
     , typechecker
   default-language: Haskell2010
