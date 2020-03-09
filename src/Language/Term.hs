@@ -6,9 +6,6 @@ import Language.Type (Type)
 
 import Protolude hiding (Type)
 
-newtype Var = Var { fromVar :: Text }
-  deriving (Eq, Show)
-
 -- | e ::= x | \x.e | e e | (e : A)
 data TermF r
   -- | term variable
@@ -35,3 +32,6 @@ eApp e = Fix . EApp e
 
 eAnn :: Term -> Type -> Term
 eAnn e ty = Fix $ EAnn e ty
+
+newtype Var = Var { fromVar :: Text }
+  deriving (Eq, Show, Ord)

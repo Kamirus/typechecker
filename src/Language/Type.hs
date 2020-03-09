@@ -4,9 +4,6 @@ import Data.Fix (Fix(..))
 
 import Protolude hiding (Type)
 
-newtype TypeVar = TypeVar { fromTypeVar :: Text }
-  deriving (Eq, Show)
-
 -- | tau,sigma ::= x | tau -> sigma
 data MonoTypeF r
   -- | Type variable
@@ -37,3 +34,6 @@ tyArrow t = Fix . TyMono . TyArrow t
 
 tyForAll :: TypeVar -> Type -> Type
 tyForAll v = Fix . TyForAll v
+
+newtype TypeVar = TypeVar { fromTypeVar :: Text }
+  deriving (Eq, Show, Ord)
