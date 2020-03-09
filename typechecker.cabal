@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ae066df955b9cae610be20bd53d3b7fc2c39733c42c45a1fc67cf3e3c5456054
+-- hash: 4c8e81b70f333a23d5965e3afc04ed6abc1a413ed24a0c2d4958a1e1a9f1af75
 
 name:           typechecker
 version:        0.1.0.0
@@ -39,7 +39,9 @@ library
   ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures
   build-depends:
       base >=4.7 && <5
+    , containers
     , data-fix
+    , microlens-platform
     , protolude
   default-language: Haskell2010
 
@@ -52,7 +54,9 @@ executable typechecker-exe
   ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , data-fix
+    , microlens-platform
     , protolude
     , typechecker
   default-language: Haskell2010
@@ -67,7 +71,9 @@ test-suite typechecker-test
   ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , data-fix
+    , microlens-platform
     , protolude
     , typechecker
   default-language: Haskell2010

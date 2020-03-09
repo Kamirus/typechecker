@@ -10,7 +10,7 @@ library:
   - DerivingStrategies
   - EmptyDataDecls
   - FlexibleContexts
-  - KindSignatures 
+  - KindSignatures
   - LambdaCase
   - MultiParamTypeClasses
   - NoImplicitPrelude
@@ -40,10 +40,11 @@ ghc-options:
 - -Wno-missing-export-lists
 - -Wno-missing-local-signatures
 dependencies:
+- containers
 - data-fix
 - base >= 4.7 && < 5
 - protolude
-- data-fix
+- microlens-platform
 name: typechecker
 version: 0.1.0.0
 extra-source-files:
