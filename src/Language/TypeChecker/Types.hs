@@ -22,6 +22,25 @@ type AlgoType = Fix (AlgoTypeF TypeF)
 -- | Monotypes in the algorithmic system
 type AlgoMonoType = Fix (AlgoTypeF MonoTypeF)
 
+atyVar :: TypeVar -> AlgoType
+atyVar = Fix . AType . TyMono . TyVar
+
+atyArrow :: AlgoType -> AlgoType -> AlgoType
+atyArrow t = Fix . AType . TyMono . TyArrow t
+
+atyForAll :: TypeVar -> AlgoType -> AlgoType
+atyForAll v = Fix . AType . TyForAll v
+
+monoToAlgoType :: AlgoMonoType -> AlgoType
+monoToAlgoType = cata go
+  where
+    go :: AlgoTypeF MonoTypeF AlgoType -> AlgoType
+    go = \case
+      AHatVar hv -> Fix $ AHatVar hv
+      AType mty -> case mty of
+        TyVar tv -> atyVar tv
+        TyArrow a b -> a `atyArrow` b
+
 -- | Existential / Unification variable, denoted e.g. \hat{alpha}
 data HatVar = HatVar
   { hvVar :: TypeVar
@@ -35,6 +54,7 @@ instance Eq HatVar where
 
 instance Ord HatVar where
   (<=) = (<=) `on` hvUID
+
 
 -- | Context is an ordered structure - list, without duplicates.
 -- |
@@ -57,10 +77,12 @@ data ContextElem
   | CtxScopeMarker HatVar
   deriving (Eq, Show)
 
+
 type MonadCheck m = (MonadError Text m)
 
 throw :: MonadCheck m => Text -> m ()
 throw = throwError
+
 
 class HasAllVars a where
   allVars :: a -> AllVars
@@ -124,6 +146,7 @@ instance Semigroup AllVars where
 
 instance Monoid AllVars where
   mempty = AllVars S.empty S.empty S.empty
+
 
 -- | Type class for overloaded operations on each set of the `AllVars`
 class AllVarsSet a where

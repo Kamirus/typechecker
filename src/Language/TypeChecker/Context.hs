@@ -1,11 +1,12 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, FlexibleInstances #-}
 module Language.TypeChecker.Context where
 
 import Data.Fix
 import Data.Set as S
+import Control.Category ((>>>))
+import Prelude (error)
 
 import Language.Type
-import Language.Term
 import Language.TypeChecker.Types
 import qualified Language.Utils as Utils
 
@@ -84,6 +85,35 @@ contextWellFormed = go . getCtx
         -- | Common recursive check for all the cases, better to check it last
         go gamma
 
+
+-- | Apply the context as a substitution to a type
+class SubstitutionTo a where
+  subst :: Context -> a -> a
+
+instance SubstitutionTo AlgoType where
+  subst = cata . goSubstToAlgo
+
+-- | Apply the context as a substitution to a type
+goSubstToAlgo :: Context -> AlgoTypeF TypeF AlgoType -> AlgoType
+goSubstToAlgo ctx = \case
+  -- | lookup \hat{alpha} in the context
+  AHatVar hv -> case findSolutionTo hv ctx of
+    -- | found a solved constraint: replace \hat{alpha} with its solution
+    Just mty -> monoToAlgoType mty
+    -- | not found, but do a sanity check that \hat{alpha} is in the context
+    Nothing -> assertInCtxAndReturn hv
+  -- | Recursive case
+  AType ty -> case ty of
+    TyForAll tv r -> atyForAll tv r
+    TyMono mty -> case mty of
+      TyVar tv -> atyVar tv
+      TyArrow ra rb -> ra `atyArrow` rb
+  where
+    assertInCtxAndReturn hv = case ctx `hole` CtxHatVar hv of
+      Just _ -> Fix $ AHatVar hv
+      Nothing -> error $ "unreachable: " <> show hv <> " not in " <> show ctx
+
+
 infixr 5 +:
 (+:) :: ContextElem -> Context -> Context
 x +: xs = Ctx $ x : getCtx xs
@@ -101,6 +131,14 @@ holeWith
   :: (ContextElem -> Bool) -> Context -> Maybe (Context, ContextElem, Context)
 holeWith f (Ctx gamma) = aux <$> Utils.splitOn f gamma
   where aux (a, b, c) = (Ctx a, b, Ctx c)
+
+-- | Looks for a solved constraint  \hat{alpha} = tau  in the context
+findSolutionTo :: HatVar -> Context -> Maybe AlgoMonoType
+findSolutionTo hv = getCtx >>> \case
+  [] -> Nothing
+  el : gamma -> case el of
+    CtxConstraint hv' mty | hv == hv' -> Just mty
+    _ -> findSolutionTo hv $ Ctx gamma
 
 data CtxAssert where
   NotIn ::(Show a, Ord a) => a -> Set a -> CtxAssert
