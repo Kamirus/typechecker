@@ -11,20 +11,16 @@ import Language.Term
 import Protolude hiding (Type)
 
 -- | Types in the algorithmic system
-data AlgoTypeF r
-  = AType (TypeF r)
+data AlgoTypeF f r
+  = AType (f r)
   | AHatVar HatVar
   deriving (Eq, Show, Functor)
 
-type AlgoType = Fix AlgoTypeF
+-- | Polytypes in the algorithmic system
+type AlgoType = Fix (AlgoTypeF TypeF)
 
 -- | Monotypes in the algorithmic system
-data AlgoMonoTypeF r
-  = AMono (MonoTypeF r)
-  | AMHatVar HatVar
-  deriving (Eq, Show, Functor)
-
-type AlgoMonoType = Fix AlgoMonoTypeF
+type AlgoMonoType = Fix (AlgoTypeF MonoTypeF)
 
 -- | Existential / Unification variable, denoted e.g. \hat{alpha}
 data HatVar = HatVar
@@ -50,7 +46,7 @@ newtype Context = Ctx { getCtx :: [ContextElem] }
 -- | What can appear in the algorithmic context
 data ContextElem
   -- | Type variable
-  = CtxVar TypeVar
+  = CtxTypeVar TypeVar
   -- | Existential type variable
   | CtxHatVar HatVar
   -- | Type annotation e.g. (x : A)
@@ -69,13 +65,16 @@ throw = throwError
 class HasAllVars a where
   allVars :: a -> AllVars
 
+instance HasAllVars Context where
+  allVars = foldMap allVars . getCtx
+
 instance HasAllVars ContextElem where
   allVars = \case
-    CtxVar tv -> singleton tv
+    CtxTypeVar tv -> singleton tv
     CtxHatVar hv -> singleton hv
     CtxAnn v algotype -> singleton v <> allVars algotype
     CtxConstraint hv algomono -> singleton hv <> allVars algomono
-    CtxScopeMarker _ -> avEmpty
+    CtxScopeMarker _ -> mempty
 
 instance HasAllVars AlgoType where
   allVars = cata $ \case
@@ -84,8 +83,8 @@ instance HasAllVars AlgoType where
 
 instance HasAllVars AlgoMonoType where
   allVars = cata $ \case
-    AMHatVar hv -> singleton hv
-    AMono t -> goMonoAllVars t
+    AHatVar hv -> singleton hv
+    AType t -> goMonoAllVars t
 
 goTypeAllVars :: TypeF AllVars -> AllVars
 goTypeAllVars = \case
@@ -116,15 +115,15 @@ _avVars = lens avVars (\av x -> av { avVars = x })
 _avHatVars :: Lens' AllVars (Set HatVar)
 _avHatVars = lens avHatVars (\av x -> av { avHatVars = x })
 
-avEmpty :: AllVars
-avEmpty = AllVars S.empty S.empty S.empty
-
 instance Semigroup AllVars where
   (AllVars tvs vs hvs) <> (AllVars tvs' vs' hvs') = AllVars tvs'' vs'' hvs''
     where
       tvs'' = tvs <> tvs'
       vs'' = vs <> vs'
       hvs'' = hvs <> hvs'
+
+instance Monoid AllVars where
+  mempty = AllVars S.empty S.empty S.empty
 
 -- | Type class for overloaded operations on each set of the `AllVars`
 class AllVarsSet a where
@@ -135,7 +134,7 @@ class AllVarsSet a where
   delete x = modifySet $ S.delete x
 
   singleton :: Ord a => a -> AllVars
-  singleton = (`insert` avEmpty)
+  singleton = (`insert` mempty)
 
 instance AllVarsSet TypeVar where
   modifySet f = _avTypeVars %~ f

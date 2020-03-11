@@ -1,6 +1,8 @@
+{-# LANGUAGE GADTs #-}
 module Language.TypeChecker.Context where
 
 import Data.Fix
+import Data.Set as S
 
 import Language.Type
 import Language.Term
@@ -9,29 +11,78 @@ import qualified Language.Utils as Utils
 
 import Protolude hiding (Type)
 
-typeWellFormed :: forall m . MonadCheck m => Context -> AlgoType -> m ()
-typeWellFormed = flip $ cata go
+-- | Under context \Gamma, type A is well-formed
+typeWellFormed :: MonadCheck m => Context -> AlgoType -> m ()
+typeWellFormed = flip $ cata $ goAlgoWellFormed goTypeWellFormed
+
+monoTypeWellFormed :: MonadCheck m => Context -> AlgoMonoType -> m ()
+monoTypeWellFormed = flip $ cata $ goAlgoWellFormed goMonoWellFormed
+
+goAlgoWellFormed
+  :: MonadCheck m
+  => (f r -> Context -> m ())
+  -> AlgoTypeF f r
+  -> Context
+  -> m ()
+goAlgoWellFormed k aty = case aty of
+  AHatVar hv -> \ctx -> do
+    let
+      f = \case
+        CtxHatVar hv' -> hv' == hv
+        CtxConstraint hv' _ -> hv' == hv
+        _ -> False
+    when (isNothing $ holeWith f ctx) (hv `throwNotIn` ctx)
+  AType ty -> k ty
+
+goTypeWellFormed :: MonadCheck m => TypeF (Context -> m ()) -> Context -> m ()
+goTypeWellFormed = \case
+    -- | check with alpha added to the context
+  TyForAll alpha k -> \ctx -> k $ CtxTypeVar alpha +: ctx
+  TyMono mty -> goMonoWellFormed mty
+
+goMonoWellFormed
+  :: MonadCheck m => MonoTypeF (Context -> m ()) -> Context -> m ()
+goMonoWellFormed mty ctx = case mty of
+    -- | type variable `alpha` should be in the context
+  TyVar alpha -> CtxTypeVar alpha & inCtx
+  -- | case (A -> B) : simply check both types recursively
+  TyArrow aty1 aty2 -> aty1 ctx >> aty2 ctx
+  where inCtx el = when (isNothing $ hole ctx el) (el `throwNotIn` ctx)
+
+
+-- | Algorithmic context \Gamma is well-formed
+contextWellFormed :: forall m . MonadCheck m => Context -> m ()
+contextWellFormed = go . getCtx
   where
-    el `inCtx` ctx = when (isNothing $ hole ctx el) (el `throwNotIn` ctx)
-    go :: AlgoTypeF (Context -> m ()) -> Context -> m ()
-    go aty ctx = case aty of
-      -- | ctx |- \hat{hv}
-      -- | if \hat{hv} in ctx or there is a solved constraint with it
-      AHatVar hv -> do
-        let
-          f = \case
-            CtxHatVar hv' -> hv' == hv
-            CtxConstraint hv' _ -> hv' == hv
-            _ -> False
-        when (isNothing $ holeWith f ctx) (hv `throwNotIn` ctx)
-      AType ty -> case ty of
-        -- | check with alpha added to the context
-        TyForAll alpha k -> k $ CtxVar alpha +: ctx
-        TyMono mty -> case mty of
-          -- | type variable `alpha` should be in the context
-          TyVar alpha -> CtxVar alpha `inCtx` ctx
-          -- | case (A -> B) : simply check both types recursively
-          TyArrow aty1 aty2 -> aty1 ctx >> aty2 ctx
+    go :: [ContextElem] -> m ()
+    go = \case
+      [] -> pure ()
+      el : gamma -> do
+        let AllVars tvs vs hvs = allVars $ Ctx gamma
+        case el of
+          -- | UvarCtx
+          CtxTypeVar tv -> assert $ tv `NotIn` tvs
+
+          -- | VarCtx
+          CtxAnn v aty -> do
+            assert $ v `NotIn` vs
+            Ctx gamma `typeWellFormed` aty
+
+          -- | EVarCtx
+          CtxHatVar hv -> assert $ hv `NotIn` hvs
+
+          -- | SolvedEVarCtx
+          CtxConstraint hv algoMonoTy -> do
+            assert $ hv `NotIn` hvs
+            Ctx gamma `monoTypeWellFormed` algoMonoTy
+
+          -- | MarkerCtx
+          CtxScopeMarker hv -> do
+            assert $ hv `NotIn` hvs
+            assert $ Ctx gamma `NoHole` CtxScopeMarker hv
+
+        -- | Common recursive check for all the cases, better to check it last
+        go gamma
 
 infixr 5 +:
 (+:) :: ContextElem -> Context -> Context
@@ -51,43 +102,15 @@ holeWith
 holeWith f (Ctx gamma) = aux <$> Utils.splitOn f gamma
   where aux (a, b, c) = (Ctx a, b, Ctx c)
 
-notInWith
-  :: (MonadError Text m, Show a)
-  => (a -> ContextElem -> Bool)
-  -> a
-  -> Context
-  -> m ()
-notInWith f v ctx = when (isNothing $ holeWith (f v) ctx) (v `throwNotIn` ctx)
+data CtxAssert where
+  NotIn ::(Show a, Ord a) => a -> Set a -> CtxAssert
+  NoHole ::Context -> ContextElem -> CtxAssert
+  -- ^ `NoHole ctx el` asserts that there is no element `el` in the `ctx` 
 
-notIn :: MonadError Text m => ContextElem -> Context -> m ()
-notIn = notInWith (==)
-
-notInDomOf
-  :: (MonadError Text m, ContextElemCaseOver a, Show a, Eq a)
-  => a
-  -> Context
-  -> m ()
-notInDomOf = notInWith $ \var -> caseOver (== var) $ const False
-
-class ContextElemCaseOver a where
-  caseOver :: forall r. (a -> r) -> (ContextElem -> r) -> ContextElem -> r
-
-instance ContextElemCaseOver HatVar where
-  caseOver f k = \case
-    CtxHatVar hv -> f hv
-    CtxConstraint hv _ -> f hv
-    CtxScopeMarker hv -> f hv
-    el -> k el
-
-instance ContextElemCaseOver Var where
-  caseOver f k = \case
-    CtxAnn v _ -> f v
-    el -> k el
-
-instance ContextElemCaseOver TypeVar where
-  caseOver f k = \case
-    CtxVar alpha -> f alpha
-    el -> k el
+assert :: MonadCheck m => CtxAssert -> m ()
+assert = \case
+  a `NotIn` s -> when (S.member a s) (throwIn a s)
+  ctx `NoHole` el -> when (isJust $ hole ctx el) (throwIn el ctx)
 
 _throwWithBin :: (MonadError Text m, Show a, Show b) => Text -> a -> b -> m ()
 _throwWithBin msg x xs = throw $ show x <> msg <> show xs
