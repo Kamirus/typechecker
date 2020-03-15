@@ -25,6 +25,9 @@ type AlgoMonoType = Fix (AlgoTypeF MonoTypeF)
 atyVar :: TypeVar -> AlgoType
 atyVar = Fix . AType . TyMono . TyVar
 
+atyHatVar :: HatVar -> AlgoType
+atyHatVar = Fix . AHatVar
+
 atyArrow :: AlgoType -> AlgoType -> AlgoType
 atyArrow t = Fix . AType . TyMono . TyArrow t
 
@@ -40,6 +43,16 @@ monoToAlgoType = cata go
       AType mty -> case mty of
         TyVar tv -> atyVar tv
         TyArrow a b -> a `atyArrow` b
+
+pattern ATyVar :: TypeVar -> AlgoTypeF TypeF r
+pattern ATyVar tv = AType (TyMono (TyVar tv))
+
+pattern ATyArrow :: r -> r -> AlgoTypeF TypeF r
+pattern ATyArrow a b = AType (TyMono (TyArrow a b))
+
+pattern ATyForAll :: TypeVar -> r -> AlgoTypeF TypeF r
+pattern ATyForAll tv a = AType (TyForAll tv a)
+
 
 -- | Existential / Unification variable, denoted e.g. \hat{alpha}
 data HatVar = HatVar
@@ -78,10 +91,17 @@ data ContextElem
   deriving (Eq, Show)
 
 
-type MonadCheck m = (MonadError Text m)
+type MonadCheck m = (MonadError Text m, MonadState Int m)
 
-throw :: MonadCheck m => Text -> m ()
+throw :: MonadError Text m => Text -> m a
 throw = throwError
+
+-- | Create a new existential variable out of a type variable
+freshHv :: MonadCheck m => TypeVar -> m HatVar
+freshHv tv = do
+  uid <- get
+  put $ 1 + uid
+  return $ HatVar tv uid
 
 
 class HasAllVars a where
