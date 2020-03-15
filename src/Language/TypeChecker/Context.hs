@@ -1,14 +1,14 @@
 {-# LANGUAGE GADTs, FlexibleInstances #-}
 module Language.TypeChecker.Context where
 
+import Control.Category ((>>>))
 import Data.Fix
 import Data.Set as S
-import Control.Category ((>>>))
 import Prelude (error)
 
 import Language.Type
 import Language.TypeChecker.Types
-import qualified Language.Utils as Utils
+import Language.Utils (splitOn, unreachablePattern)
 
 import Protolude hiding (Type)
 
@@ -86,12 +86,13 @@ contextWellFormed = go . getCtx
         go gamma
 
 
--- | Apply the context as a substitution to a type
+-- | Apply the context as a substitution to a type.
+-- | only existential variables are affected
 class SubstitutionTo a where
-  subst :: Context -> a -> a
+  substHv :: Context -> a -> a
 
 instance SubstitutionTo AlgoType where
-  subst = cata . goSubstToAlgo
+  substHv = cata . goSubstToAlgo
 
 -- | Apply the context as a substitution to a type
 goSubstToAlgo :: Context -> AlgoTypeF TypeF AlgoType -> AlgoType
@@ -103,15 +104,32 @@ goSubstToAlgo ctx = \case
     -- | not found, but do a sanity check that \hat{alpha} is in the context
     Nothing -> assertInCtxAndReturn hv
   -- | Recursive case
-  AType ty -> case ty of
-    TyForAll tv r -> atyForAll tv r
-    TyMono mty -> case mty of
-      TyVar tv -> atyVar tv
-      TyArrow ra rb -> ra `atyArrow` rb
+  ATyForAll tv r -> atyForAll tv r
+  ATyVar tv -> atyVar tv
+  ATyArrow ra rb -> ra `atyArrow` rb
+  _ -> unreachablePattern
   where
     assertInCtxAndReturn hv = case ctx `hole` CtxHatVar hv of
       Just _ -> Fix $ AHatVar hv
       Nothing -> error $ "unreachable: " <> show hv <> " not in " <> show ctx
+
+
+infix :/
+data SubstTv = HatVar :/ TypeVar
+
+substTv :: SubstTv -> AlgoType -> AlgoType
+substTv (hv :/ tv) = cata go
+  where
+    go :: AlgoTypeF TypeF AlgoType -> AlgoType
+    go = \case
+      a@(ATyVar tv')
+        | tv == tv' -> atyHatVar hv
+        | otherwise -> Fix a
+      a@AHatVar{} -> Fix a
+      -- | Recursive case
+      ATyForAll tv' r -> atyForAll tv' r
+      ATyArrow ra rb -> ra `atyArrow` rb
+      _ -> unreachablePattern
 
 
 infixr 5 +:
@@ -129,8 +147,14 @@ hole gamma el = holeWith (== el) gamma
 
 holeWith
   :: (ContextElem -> Bool) -> Context -> Maybe (Context, ContextElem, Context)
-holeWith f (Ctx gamma) = aux <$> Utils.splitOn f gamma
+holeWith f (Ctx gamma) = aux <$> splitOn f gamma
   where aux (a, b, c) = (Ctx a, b, Ctx c)
+
+has :: Context -> ContextElem -> Bool
+ctx `has` el = isJust $ hole ctx el
+
+notHas :: Context -> ContextElem -> Bool
+notHas ctx = not . has ctx
 
 -- | Looks for a solved constraint  \hat{alpha} = tau  in the context
 findSolutionTo :: HatVar -> Context -> Maybe AlgoMonoType
@@ -150,11 +174,11 @@ assert = \case
   a `NotIn` s -> when (S.member a s) (throwIn a s)
   ctx `NoHole` el -> when (isJust $ hole ctx el) (throwIn el ctx)
 
-_throwWithBin :: (MonadError Text m, Show a, Show b) => Text -> a -> b -> m ()
+_throwWithBin :: (MonadError Text m, Show a, Show b) => Text -> a -> b -> m c
 _throwWithBin msg x xs = throw $ show x <> msg <> show xs
 
-throwNotIn :: (MonadError Text m, Show a, Show b) => a -> b -> m ()
+throwNotIn :: (MonadError Text m, Show a, Show b) => a -> b -> m c
 throwNotIn = _throwWithBin " not in "
 
-throwIn :: (MonadError Text m, Show a, Show b) => a -> b -> m ()
+throwIn :: (MonadError Text m, Show a, Show b) => a -> b -> m c
 throwIn = _throwWithBin " shouldn't be in "
