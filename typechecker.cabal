@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4c8e81b70f333a23d5965e3afc04ed6abc1a413ed24a0c2d4958a1e1a9f1af75
+-- hash: 3b2af1ec063335bfafbb98bdaf2512b43f45257667a75d530bfad263b6225e13
 
 name:           typechecker
 version:        0.1.0.0
@@ -28,6 +28,7 @@ library
       Language.Term
       Language.Type
       Language.TypeChecker.Context
+      Language.TypeChecker.SubTyping
       Language.TypeChecker.Types
       Language.Utils
       Lib
