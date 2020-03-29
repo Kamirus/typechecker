@@ -49,14 +49,14 @@ subtype ctx (Fix _A) (Fix _B) = go _A _B
     -- | <: InstantiateR
     go a (AHatVar hv) = do
       checkBeforeInstantiate a hv
-      instantiate ctx (Fix a) (atyHatVar hv)
+      instantiateR ctx (Fix a) hv
 
     -- | <: InstantiateL
     go (AHatVar hv) b = do
       checkBeforeInstantiate b hv
-      instantiate ctx (atyHatVar hv) (Fix b)
+      instantiateL ctx hv (Fix b)
 
-    go a b = throw $ "subtype unreachable with :" <> show a <> " <: " <> show b
+    go a b = throw $ "can't subtype :" <> show a <> " <: " <> show b
 
     checkBeforeInstantiate a hv = do
       _ <- hv `assertIn` ctx $ ctx `hole` CtxHatVar hv
@@ -66,5 +66,8 @@ assertIn :: (MonadCheck m, Show a, Show b) => a -> b -> Maybe c -> m c
 assertIn a b = maybe (a `throwNotIn` b) pure
 
 
-instantiate :: MonadCheck m => Context -> AlgoType -> AlgoType -> m Context
-instantiate = undefined
+-- | `instantiate ctx `
+instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
+instantiateL ctx hv = _instantiateL
+
+instantiateR = _instantiateR

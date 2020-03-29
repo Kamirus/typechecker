@@ -8,7 +8,7 @@ import Prelude (error)
 
 import Language.Type
 import Language.TypeChecker.Types
-import Language.Utils (splitOn, unreachablePattern)
+import Language.Utils (splitOn)
 
 import Protolude hiding (Type)
 
@@ -107,7 +107,6 @@ goSubstToAlgo ctx = \case
   ATyForAll tv r -> atyForAll tv r
   ATyVar tv -> atyVar tv
   ATyArrow ra rb -> ra `atyArrow` rb
-  _ -> unreachablePattern
   where
     assertInCtxAndReturn hv = case ctx `hole` CtxHatVar hv of
       Just _ -> Fix $ AHatVar hv
@@ -129,7 +128,6 @@ substTv (hv :/ tv) = cata go
       -- | Recursive case
       ATyForAll tv' r -> atyForAll tv' r
       ATyArrow ra rb -> ra `atyArrow` rb
-      _ -> unreachablePattern
 
 
 infixr 5 +:

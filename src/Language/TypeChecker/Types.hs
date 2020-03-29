@@ -53,6 +53,7 @@ pattern ATyArrow a b = AType (TyMono (TyArrow a b))
 pattern ATyForAll :: TypeVar -> r -> AlgoTypeF TypeF r
 pattern ATyForAll tv a = AType (TyForAll tv a)
 
+{-# COMPLETE ATyVar, AHatVar, ATyArrow, ATyForAll #-}
 
 -- | Existential / Unification variable, denoted e.g. \hat{alpha}
 data HatVar = HatVar
