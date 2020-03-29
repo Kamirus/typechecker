@@ -1,10 +1,10 @@
 module Language.Term where
 
-import Data.Fix (Fix(..))
+import Protolude hiding (Type)
+
+import Data.Fix (Fix (..))
 
 import Language.Type (Type)
-
-import Protolude hiding (Type)
 
 -- | e ::= x | \x.e | e e | (e : A)
 data TermF r

@@ -1,8 +1,8 @@
 module Language.Type where
 
-import Data.Fix (Fix(..))
-
 import Protolude hiding (Type)
+
+import Data.Fix (Fix (..))
 
 -- | tau,sigma ::= x | tau -> sigma
 data MonoTypeF r

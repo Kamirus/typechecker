@@ -1,12 +1,13 @@
 -- Algorithmic subtyping
 module Language.TypeChecker.SubTyping where
 
+import Protolude
+
 import Data.Fix
 
+import Language.Type
 import Language.TypeChecker.Context
 import Language.TypeChecker.Types
-
-import Protolude
 
 -- | Checks whether under input context `ctx`, type A is a subtype of B
 -- | and returns an output context (delta)
@@ -27,9 +28,8 @@ subtype ctx (Fix _A) (Fix _B) = go _A _B
     -- | <: ForallR
     go a (ATyForAll tv b) = do
       ctx' <- subtype (CtxTypeVar tv +: ctx) (Fix a) b
-      tv `assertIn` ctx' $ do
-        (_, _, delta) <- ctx' `hole` (CtxTypeVar tv)
-        pure delta
+      (_, _, delta) <- ctx' `hole_` CtxTypeVar tv
+      pure delta
 
     -- | <: ForallL
     -- | `forall tv. a` is a subtype of `b`
@@ -39,12 +39,11 @@ subtype ctx (Fix _A) (Fix _B) = go _A _B
       -- We are not guessing so instantiate with a fresh existential variable
       hv <- freshHv tv
       let
-        a' = (hv :/ tv) `substTv` a
+        a' = hv :/ tv `substTv` a
         marker = CtxScopeMarker hv
       ctx' <- subtype (CtxHatVar hv +: marker +: ctx) a' (Fix b)
-      marker `assertIn` ctx' $ do
-        (_, _, delta) <- ctx' `hole` marker
-        pure delta
+      (_, _, delta) <- ctx' `hole_` marker
+      pure delta
 
     -- | <: InstantiateR
     go a (AHatVar hv) = do
@@ -59,15 +58,96 @@ subtype ctx (Fix _A) (Fix _B) = go _A _B
     go a b = throw $ "can't subtype :" <> show a <> " <: " <> show b
 
     checkBeforeInstantiate a hv = do
-      _ <- hv `assertIn` ctx $ ctx `hole` CtxHatVar hv
+      ctx `assertHas` CtxHatVar hv
       assert $ hv `NotIn` avHatVars (allVars $ Fix a)
-
-assertIn :: (MonadCheck m, Show a, Show b) => a -> b -> Maybe c -> m c
-assertIn a b = maybe (a `throwNotIn` b) pure
 
 
 -- | `instantiate ctx `
 instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
-instantiateL ctx hv = _instantiateL
+instantiateL ctx alphaHv aty = case algoToMonoType aty of
+  -- | InstLSolve
+  Just tau -> instLSolve ctx alphaHv tau
+  Nothing -> case unFix aty of
+    -- | InstLReach
+    AHatVar betaHv -> instLReach ctx alphaHv betaHv
 
-instantiateR = _instantiateR
+    -- | InstLAIIR
+    ATyForAll betaTv b -> do
+      ctx `assertHas` CtxHatVar alphaHv
+      instantiateL (CtxTypeVar betaTv +: ctx) alphaHv b
+
+    -- | InstLArr
+    ATyArrow b1 b2 -> do
+      (hv1, hv2, ctx') <- setupInstArr ctx alphaHv
+      theta <- instantiateR ctx' b1 hv1
+      instantiateL theta hv2 (theta `substHv` b2)
+
+    ATyVar _ -> throw "unreachable - type variable is a mono type"
+
+instantiateR ::  MonadCheck m => Context -> AlgoType -> HatVar -> m Context
+instantiateR ctx aty alphaHv = case algoToMonoType aty of
+  -- | InstRSolve
+  Just tau -> instLSolve ctx alphaHv tau
+  Nothing -> case unFix aty of
+    -- | InstLReach
+    AHatVar betaHv -> instLReach ctx alphaHv betaHv
+
+    -- | InstRAIIL
+    ATyForAll betaTv b -> do
+      ctx `assertHas` CtxHatVar alphaHv
+      betaHv <- freshHv betaTv
+      instantiateR
+        (CtxTypeVar betaTv +: CtxScopeMarker betaHv +: ctx)
+        (betaHv :/ betaTv `substTv` b)
+        alphaHv
+
+    -- | InstLArr
+    ATyArrow a1 a2 -> do
+      (hv1, hv2, ctx') <- setupInstArr ctx alphaHv
+      theta <- instantiateL ctx' hv1 a1
+      instantiateR theta (theta `substHv` a2) hv2
+
+    ATyVar _ -> throw "unreachable - type variable is a mono type"
+
+
+instLSolve :: MonadCheck m => Context -> HatVar -> AlgoMonoType -> m Context
+instLSolve ctx alphaHv tau = do
+  (gamma', _, gamma) <- ctx `hole_` CtxHatVar alphaHv
+  monoTypeWellFormed gamma tau
+  pure $ gamma' <> alphaHv `eqConstraint` tau <> gamma
+
+instLReach :: MonadCheck m => Context -> HatVar -> HatVar -> m Context
+instLReach ctx alphaHv betaHv = do
+  (ctx1, _, ctx2) <- ctx `hole_` CtxHatVar betaHv
+  ctx2 `assertHas` CtxHatVar alphaHv
+  pure $ ctx1 <> betaHv `eqConstraint` atyHatVar alphaHv <> ctx2
+
+-- | Common util for both InstLArr and InstRArr
+setupInstArr :: MonadCheck m => Context -> HatVar -> m (HatVar, HatVar, Context)
+setupInstArr ctx alphaHv = do
+  plug <- do
+    (ctx1, _, ctx2) <- ctx `hole_` CtxHatVar alphaHv
+    pure $ \newctx -> ctx1 <> newctx <> ctx2
+
+  hv1 <- freshRenamedHv (<> "1") alphaHv
+  hv2 <- freshRenamedHv (<> "2") alphaHv
+  let
+    ctx' = plug
+      $ CtxConstraint alphaHv (hv1 `hvArrow` hv2)
+      +: CtxHatVar hv1
+      +: CtxHatVar hv2
+      +: mempty
+  pure (hv1, hv2, ctx')
+
+
+assertIn :: (MonadCheck m, Show a, Show b) => a -> b -> Maybe c -> m c
+assertIn a b = maybe (a `throwNotIn` b) pure
+
+eqConstraint :: HatVar -> AlgoMonoType -> Context
+hv `eqConstraint` tau = Ctx $ pure $ CtxConstraint hv tau
+
+hvArrow :: HatVar -> HatVar -> AlgoMonoType
+hv1 `hvArrow` hv2 = Fix $ AType $ TyArrow (atyHatVar hv1) (atyHatVar hv2)
+
+freshRenamedHv :: MonadCheck m => (Text -> Text) -> HatVar -> m HatVar
+freshRenamedHv f hv = freshHv $ TypeVar $ f $ fromTypeVar $ hvVar hv

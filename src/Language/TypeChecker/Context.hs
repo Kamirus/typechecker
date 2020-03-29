@@ -1,5 +1,8 @@
-{-# LANGUAGE GADTs, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs             #-}
 module Language.TypeChecker.Context where
+
+import Protolude hiding (Type)
 
 import Control.Category ((>>>))
 import Data.Fix
@@ -9,8 +12,6 @@ import Prelude (error)
 import Language.Type
 import Language.TypeChecker.Types
 import Language.Utils (splitOn)
-
-import Protolude hiding (Type)
 
 -- | Under context \Gamma, type A is well-formed
 typeWellFormed :: MonadCheck m => Context -> AlgoType -> m ()
@@ -45,10 +46,9 @@ goMonoWellFormed
   :: MonadCheck m => MonoTypeF (Context -> m ()) -> Context -> m ()
 goMonoWellFormed mty ctx = case mty of
     -- | type variable `alpha` should be in the context
-  TyVar alpha -> CtxTypeVar alpha & inCtx
+  TyVar alpha       -> ctx `assertHas` CtxTypeVar alpha
   -- | case (A -> B) : simply check both types recursively
   TyArrow aty1 aty2 -> aty1 ctx >> aty2 ctx
-  where inCtx el = when (isNothing $ hole ctx el) (el `throwNotIn` ctx)
 
 
 -- | Algorithmic context \Gamma is well-formed
@@ -102,18 +102,18 @@ goSubstToAlgo ctx = \case
     -- | found a solved constraint: replace \hat{alpha} with its solution
     Just mty -> monoToAlgoType mty
     -- | not found, but do a sanity check that \hat{alpha} is in the context
-    Nothing -> assertInCtxAndReturn hv
+    Nothing  -> assertInCtxAndReturn hv
   -- | Recursive case
   ATyForAll tv r -> atyForAll tv r
   ATyVar tv -> atyVar tv
   ATyArrow ra rb -> ra `atyArrow` rb
   where
     assertInCtxAndReturn hv = case ctx `hole` CtxHatVar hv of
-      Just _ -> Fix $ AHatVar hv
+      Just _  -> Fix $ AHatVar hv
       Nothing -> error $ "unreachable: " <> show hv <> " not in " <> show ctx
 
 
-infix :/
+infixl :/
 data SubstTv = HatVar :/ TypeVar
 
 substTv :: SubstTv -> AlgoType -> AlgoType
@@ -143,6 +143,10 @@ x +: xs = Ctx $ x : getCtx xs
 hole :: Context -> ContextElem -> Maybe (Context, ContextElem, Context)
 hole gamma el = holeWith (== el) gamma
 
+-- | Similar to `hole` but throws an error if a hole wasn't found
+hole_ :: MonadCheck m => Context -> ContextElem -> m (Context, ContextElem, Context)
+hole_ gamma el = maybe (el `throwNotIn` gamma) pure $ hole gamma el
+
 holeWith
   :: (ContextElem -> Bool) -> Context -> Maybe (Context, ContextElem, Context)
 holeWith f (Ctx gamma) = aux <$> splitOn f gamma
@@ -154,18 +158,21 @@ ctx `has` el = isJust $ hole ctx el
 notHas :: Context -> ContextElem -> Bool
 notHas ctx = not . has ctx
 
+assertHas :: MonadCheck m => Context -> ContextElem -> m ()
+ctx `assertHas` e = unless (ctx `has` e) (throwNotIn e ctx)
+
 -- | Looks for a solved constraint  \hat{alpha} = tau  in the context
 findSolutionTo :: HatVar -> Context -> Maybe AlgoMonoType
 findSolutionTo hv = getCtx >>> \case
   [] -> Nothing
   el : gamma -> case el of
     CtxConstraint hv' mty | hv == hv' -> Just mty
-    _ -> findSolutionTo hv $ Ctx gamma
+    _                                 -> findSolutionTo hv $ Ctx gamma
 
 data CtxAssert where
   NotIn ::(Show a, Ord a) => a -> Set a -> CtxAssert
   NoHole ::Context -> ContextElem -> CtxAssert
-  -- ^ `NoHole ctx el` asserts that there is no element `el` in the `ctx` 
+  -- ^ `NoHole ctx el` asserts that there is no element `el` in the `ctx`
 
 assert :: MonadCheck m => CtxAssert -> m ()
 assert = \case

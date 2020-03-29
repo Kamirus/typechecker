@@ -1,14 +1,15 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Language.TypeChecker.Types where
 
-import Data.Fix
-import qualified Data.Set as S
-import Lens.Micro.Platform
-
-import Language.Type
-import Language.Term
-
 import Protolude hiding (Type)
+
+import           Data.Fix
+import qualified Data.Set as S
+import           Lens.Micro.Platform
+
+import Language.Term
+import Language.Type
 
 -- | Types in the algorithmic system
 data AlgoTypeF f r
@@ -22,17 +23,20 @@ type AlgoType = Fix (AlgoTypeF TypeF)
 -- | Monotypes in the algorithmic system
 type AlgoMonoType = Fix (AlgoTypeF MonoTypeF)
 
-atyVar :: TypeVar -> AlgoType
-atyVar = Fix . AType . TyMono . TyVar
-
-atyHatVar :: HatVar -> AlgoType
-atyHatVar = Fix . AHatVar
-
-atyArrow :: AlgoType -> AlgoType -> AlgoType
-atyArrow t = Fix . AType . TyMono . TyArrow t
+fixA :: f (Fix (AlgoTypeF f)) -> Fix (AlgoTypeF f)
+fixA = Fix . AType
 
 atyForAll :: TypeVar -> AlgoType -> AlgoType
-atyForAll v = Fix . AType . TyForAll v
+atyForAll v = fixA . TyForAll v
+
+atyArrow :: AlgoType -> AlgoType -> AlgoType
+atyArrow t = fixA . TyMono . TyArrow t
+
+atyVar :: TypeVar -> AlgoType
+atyVar = fixA . TyMono . TyVar
+
+atyHatVar :: HatVar -> Fix (AlgoTypeF f)
+atyHatVar = Fix . AHatVar
 
 monoToAlgoType :: AlgoMonoType -> AlgoType
 monoToAlgoType = cata go
@@ -41,8 +45,20 @@ monoToAlgoType = cata go
     go = \case
       AHatVar hv -> Fix $ AHatVar hv
       AType mty -> case mty of
-        TyVar tv -> atyVar tv
+        TyVar tv    -> atyVar tv
         TyArrow a b -> a `atyArrow` b
+
+algoToMonoType :: AlgoType -> Maybe AlgoMonoType
+algoToMonoType = cata go
+  where
+    wrap :: Maybe (MonoTypeF AlgoMonoType) -> Maybe AlgoMonoType
+    wrap = map $ Fix . AType
+
+    go = \case
+      ATyVar tv -> wrap $ Just $ TyVar tv
+      AHatVar hv -> Just $ Fix $ AHatVar hv
+      ATyArrow a b -> wrap $ TyArrow <$> a <*> b
+      ATyForAll{} -> Nothing
 
 pattern ATyVar :: TypeVar -> AlgoTypeF TypeF r
 pattern ATyVar tv = AType (TyMono (TyVar tv))
@@ -75,7 +91,7 @@ instance Ord HatVar where
 -- | List order is somewhat reversed compared to the contexts in the paper:
 -- | `(x : alpha) :: alpha :: Gamma`  is equiv. to  `Gamma,alpha,(x:alpha)`
 newtype Context = Ctx { getCtx :: [ContextElem] }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Semigroup, Monoid)
 
 -- | What can appear in the algorithmic context
 data ContextElem
@@ -145,8 +161,8 @@ goMonoAllVars = \case
 -- |  - existential type variables: \hat{alpha}'s
 data AllVars = AllVars
   { avTypeVars :: Set TypeVar
-  , avVars :: Set Var
-  , avHatVars :: Set HatVar
+  , avVars     :: Set Var
+  , avHatVars  :: Set HatVar
   } deriving (Eq, Show)
 
 _avTypeVars :: Lens' AllVars (Set TypeVar)
