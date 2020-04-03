@@ -9,6 +9,7 @@ import Data.Fix
 import Data.Set as S
 import Prelude (error)
 
+import Language.Term
 import Language.Type
 import Language.TypeChecker.Types
 import Language.Utils (splitOn)
@@ -168,6 +169,15 @@ findSolutionTo hv = getCtx >>> \case
   el : gamma -> case el of
     CtxConstraint hv' mty | hv == hv' -> Just mty
     _                                 -> findSolutionTo hv $ Ctx gamma
+
+lookupVar' :: MonadCheck m => Var -> Context -> m AlgoType
+lookupVar' v ctx = maybe (throwNotIn v ctx) pure $ lookupVar v ctx
+
+lookupVar :: Var -> Context -> Maybe AlgoType
+lookupVar v = getCtx >>> \case
+  [] -> Nothing
+  CtxAnn v' a : _ | v' == v -> Just a
+  _ : gamma -> lookupVar v $ Ctx gamma
 
 data CtxAssert where
   NotIn ::(Show a, Ord a) => a -> Set a -> CtxAssert

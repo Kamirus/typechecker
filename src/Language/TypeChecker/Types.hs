@@ -60,6 +60,15 @@ algoToMonoType = cata go
       ATyArrow a b -> wrap $ TyArrow <$> a <*> b
       ATyForAll{} -> Nothing
 
+typeToAlgoType :: Type -> AlgoType
+typeToAlgoType = cata go
+  where
+    go = \case
+      TyForAll tv a -> atyForAll tv a
+      TyMono mty -> case mty of
+        TyVar tv -> atyVar tv
+        TyArrow a b -> atyArrow a b
+
 pattern ATyVar :: TypeVar -> AlgoTypeF TypeF r
 pattern ATyVar tv = AType (TyMono (TyVar tv))
 
@@ -120,6 +129,8 @@ freshHv tv = do
   put $ 1 + uid
   return $ HatVar tv uid
 
+freshHv' :: MonadCheck m => m HatVar
+freshHv' = freshHv $ TypeVar "a_"
 
 class HasAllVars a where
   allVars :: a -> AllVars
