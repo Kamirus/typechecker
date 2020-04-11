@@ -34,7 +34,7 @@ const_ann = eAnn
 
 go :: Term -> IO ()
 go e = do
-  (ctx, aty) <- either (error . show) pure $ runMonadCheck $ infer mempty e
+  (ctx, aty) <- either (error . show) pure $ runMonadCheck $ typecheck e
   print $ ppCtx ctx
   print $ ppTerm e
   print $ ppAlgoType aty

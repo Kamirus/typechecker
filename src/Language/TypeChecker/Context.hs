@@ -4,10 +4,10 @@ module Language.TypeChecker.Context where
 
 import Protolude hiding (Type)
 
-import Control.Category ((>>>))
-import Data.Fix
-import Data.Set as S
-import Prelude (error)
+import           Control.Category ((>>>))
+import           Data.Fix
+import qualified Data.Set as S
+import           Prelude (error)
 
 import Language.PPrint
 import Language.Term
@@ -96,6 +96,10 @@ class SubstitutionTo a where
 instance SubstitutionTo AlgoType where
   substHv = cata . goSubstToAlgo
 
+instance SubstitutionTo AlgoMonoType where
+  substHv ctx = fromMaybe err . algoToMonoType . substHv ctx . monoToAlgoType
+    where err = error "unreachable : SubstitutionTo AlgoMonoType"
+
 -- | Apply the context as a substitution to a type
 goSubstToAlgo :: Context -> AlgoTypeF TypeF AlgoType -> AlgoType
 goSubstToAlgo ctx = \case
@@ -113,6 +117,18 @@ goSubstToAlgo ctx = \case
     assertInCtxAndReturn hv = case ctx `hole` CtxHatVar hv of
       Just _  -> Fix $ AHatVar hv
       Nothing -> error $ "unreachable: " <> show hv <> " not in " <> show ctx
+
+
+-- | Solve all the constraints
+-- |
+solve :: Context -> Context
+solve = foldl go mempty . reverse . getCtx
+  where
+    go :: Context -> ContextElem -> Context
+    go ctx = \case
+      CtxAnn v a -> CtxAnn v (ctx `substHv` a) +: ctx
+      CtxConstraint hv mty -> CtxConstraint hv (ctx `substHv` mty) +: ctx
+      el -> el +: ctx
 
 
 infixl :/

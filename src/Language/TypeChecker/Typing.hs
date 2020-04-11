@@ -11,6 +11,14 @@ import Language.TypeChecker.Context
 import Language.TypeChecker.SubTyping
 import Language.TypeChecker.Types
 
+typecheck :: MonadCheck m => Term -> m (Context, AlgoType)
+typecheck e = do
+  (ctx', a') <- infer mempty e
+  traceShowM $ pp ctx'
+  let ctx = solve ctx'
+  let a = ctx `substHv` a'
+  pure (ctx, a)
+
 -- | Under input context Γ, e checks against input type A and outputs context ∆
 check :: MonadCheck m => Context -> Term -> AlgoType -> m Context
 check ctx _e@(Fix expr) _A@(Fix _a) = logCheck *> go expr _a
