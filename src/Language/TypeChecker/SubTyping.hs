@@ -66,10 +66,10 @@ subtype ctx (Fix _A) (Fix _B) = logSubtype *> go _A _B
       "DEBUG: subtype" <+> pp' ctx <+> pp' (Fix _A) <+> pp' (Fix _B)
 
 instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
-instantiateL ctx alphaHv aty = case algoToMonoType aty of
+instantiateL ctx alphaHv aty = catchError
   -- | InstLSolve
-  Just tau -> instLSolve ctx alphaHv tau
-  Nothing -> case unFix aty of
+  (algoToMonoType' aty >>= instLSolve ctx alphaHv)
+  $ const $ case unFix aty of
     -- | InstLReach
     AHatVar betaHv -> instLReach ctx alphaHv betaHv
 
@@ -86,11 +86,14 @@ instantiateL ctx alphaHv aty = case algoToMonoType aty of
 
     ATyVar _ -> throw "unreachable - type variable is a mono type"
 
+algoToMonoType' :: MonadCheck m => AlgoType -> m AlgoMonoType
+algoToMonoType' aty = maybe (throw "not mono") pure $ algoToMonoType aty
+
 instantiateR ::  MonadCheck m => Context -> AlgoType -> HatVar -> m Context
-instantiateR ctx aty alphaHv = case algoToMonoType aty of
+instantiateR ctx aty alphaHv = catchError
   -- | InstRSolve
-  Just tau -> instLSolve ctx alphaHv tau
-  Nothing -> case unFix aty of
+  (algoToMonoType' aty >>= instLSolve ctx alphaHv)
+  $ const $ case unFix aty of
     -- | InstRReach
     AHatVar betaHv -> instLReach ctx alphaHv betaHv
 
@@ -131,8 +134,8 @@ setupInstArr ctx alphaHv = do
     (ctx1, _, ctx2) <- ctx `hole_` CtxHatVar alphaHv
     pure $ \newctx -> ctx1 <> newctx <> ctx2
 
-  hv1 <- freshRenamedHv (<> "1") alphaHv
-  hv2 <- freshRenamedHv (<> "2") alphaHv
+  hv1 <- freshHv $ hvVar alphaHv -- freshRenamedHv (<> "1") alphaHv
+  hv2 <- freshHv $ hvVar alphaHv -- freshRenamedHv (<> "2") alphaHv
   let
     ctx' = plug
       $ CtxConstraint alphaHv (hv1 `hvArrow` hv2)
@@ -151,5 +154,5 @@ hv `eqConstraint` tau = Ctx $ pure $ CtxConstraint hv tau
 hvArrow :: HatVar -> HatVar -> AlgoMonoType
 hv1 `hvArrow` hv2 = Fix $ AType $ TyArrow (atyHatVar hv1) (atyHatVar hv2)
 
-freshRenamedHv :: MonadCheck m => (Text -> Text) -> HatVar -> m HatVar
-freshRenamedHv f hv = freshHv $ TypeVar $ f $ fromTypeVar $ hvVar hv
+-- freshRenamedHv :: MonadCheck m => (Text -> Text) -> HatVar -> m HatVar
+-- freshRenamedHv f hv = freshHv $ TypeVar $ f $ fromTypeVar $ hvVar hv
