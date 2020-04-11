@@ -3,6 +3,7 @@ module Language.Type where
 import Protolude hiding (Type)
 
 import Data.Fix (Fix (..))
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
 -- | tau,sigma ::= x | tau -> sigma
 data MonoTypeF r
@@ -37,3 +38,6 @@ tyForAll v = Fix . TyForAll v
 
 newtype TypeVar = TypeVar { fromTypeVar :: Text }
   deriving (Eq, Show, Ord)
+
+instance Pretty TypeVar where
+  pretty = pretty . fromTypeVar

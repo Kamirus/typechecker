@@ -31,6 +31,27 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - typechecker
+    default-extensions:
+    - ConstraintKinds
+    - DataKinds
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - DerivingStrategies
+    - EmptyDataDecls
+    - FlexibleContexts
+    - KindSignatures
+    - LambdaCase
+    - MultiParamTypeClasses
+    - NoImplicitPrelude
+    - OverloadedStrings
+    - PatternGuards
+    - PatternSynonyms
+    - RankNTypes
+    - RecordWildCards
+    - ScopedTypeVariables
+    - TupleSections
 copyright: 2020 Kamil Listopad
 ghc-options:
 - -Weverything
@@ -45,6 +66,7 @@ dependencies:
 - base >= 4.7 && < 5
 - protolude
 - microlens-platform
+- prettyprinter
 name: typechecker
 version: 0.1.0.0
 extra-source-files:

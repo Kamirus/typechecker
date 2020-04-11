@@ -6,6 +6,7 @@ import Protolude hiding (Type)
 
 import           Data.Fix
 import qualified Data.Set as S
+import           Data.Text.Prettyprint.Doc (Pretty, pretty)
 import           Lens.Micro.Platform
 
 import Language.Term
@@ -66,7 +67,7 @@ typeToAlgoType = cata go
     go = \case
       TyForAll tv a -> atyForAll tv a
       TyMono mty -> case mty of
-        TyVar tv -> atyVar tv
+        TyVar tv    -> atyVar tv
         TyArrow a b -> atyArrow a b
 
 pattern ATyVar :: TypeVar -> AlgoTypeF TypeF r
@@ -94,6 +95,9 @@ instance Eq HatVar where
 instance Ord HatVar where
   (<=) = (<=) `on` hvUID
 
+instance Pretty HatVar where
+  -- pretty = ("hv_" <>) . pretty . hvVar
+  pretty (HatVar tv i) = pretty tv <> pretty i
 
 -- | Context is an ordered structure - list, without duplicates.
 -- |
@@ -119,6 +123,9 @@ data ContextElem
 
 type MonadCheck m = (MonadError Text m, MonadState Int m)
 
+runMonadCheck :: ExceptT Text (StateT Int Identity) a -> Either Text a
+runMonadCheck m = evalState (runExceptT m) 0
+
 throw :: MonadError Text m => Text -> m a
 throw = throwError
 
@@ -130,7 +137,7 @@ freshHv tv = do
   return $ HatVar tv uid
 
 freshHv' :: MonadCheck m => m HatVar
-freshHv' = freshHv $ TypeVar "a_"
+freshHv' = freshHv $ TypeVar "t"
 
 class HasAllVars a where
   allVars :: a -> AllVars

@@ -9,6 +9,7 @@ import Data.Fix
 import Data.Set as S
 import Prelude (error)
 
+import Language.PPrint
 import Language.Term
 import Language.Type
 import Language.TypeChecker.Types
@@ -34,7 +35,7 @@ goAlgoWellFormed k aty = case aty of
         CtxHatVar hv' -> hv' == hv
         CtxConstraint hv' _ -> hv' == hv
         _ -> False
-    when (isNothing $ holeWith f ctx) (hv `throwNotIn` ctx)
+    when (isNothing $ holeWith f ctx) (pretty hv `throwNotIn` pp' ctx)
   AType ty -> k ty
 
 goTypeWellFormed :: MonadCheck m => TypeF (Context -> m ()) -> Context -> m ()
@@ -171,7 +172,8 @@ findSolutionTo hv = getCtx >>> \case
     _                                 -> findSolutionTo hv $ Ctx gamma
 
 lookupVar' :: MonadCheck m => Var -> Context -> m AlgoType
-lookupVar' v ctx = maybe (throwNotIn v ctx) pure $ lookupVar v ctx
+lookupVar' v ctx = maybe err pure $ lookupVar v ctx
+  where err = throwNotIn (pretty v) (pp' ctx)
 
 lookupVar :: Var -> Context -> Maybe AlgoType
 lookupVar v = getCtx >>> \case

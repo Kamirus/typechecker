@@ -5,6 +5,7 @@ import Protolude
 
 import Data.Fix
 
+import Language.PPrint
 import Language.Type
 import Language.TypeChecker.Context
 import Language.TypeChecker.Types
@@ -12,7 +13,7 @@ import Language.TypeChecker.Types
 -- | Checks whether under input context `ctx`, type A is a subtype of B
 -- | and returns an output context (delta)
 subtype :: MonadCheck m => Context -> AlgoType -> AlgoType -> m Context
-subtype ctx (Fix _A) (Fix _B) = go _A _B
+subtype ctx (Fix _A) (Fix _B) = logSubtype *> go _A _B
   where
     -- | <: Var
     go (ATyVar tv) (ATyVar tv') | tv == tv', ctx `has` CtxTypeVar tv = pure ctx
@@ -61,8 +62,9 @@ subtype ctx (Fix _A) (Fix _B) = go _A _B
       ctx `assertHas` CtxHatVar hv
       assert $ hv `NotIn` avHatVars (allVars $ Fix a)
 
+    logSubtype = traceShowM $
+      "DEBUG: subtype" <+> pp' ctx <+> pp' (Fix _A) <+> pp' (Fix _B)
 
--- | `instantiate ctx `
 instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
 instantiateL ctx alphaHv aty = case algoToMonoType aty of
   -- | InstLSolve
@@ -89,7 +91,7 @@ instantiateR ctx aty alphaHv = case algoToMonoType aty of
   -- | InstRSolve
   Just tau -> instLSolve ctx alphaHv tau
   Nothing -> case unFix aty of
-    -- | InstLReach
+    -- | InstRReach
     AHatVar betaHv -> instLReach ctx alphaHv betaHv
 
     -- | InstRAIIL
@@ -101,7 +103,7 @@ instantiateR ctx aty alphaHv = case algoToMonoType aty of
         (betaHv :/ betaTv `substTv` b)
         alphaHv
 
-    -- | InstLArr
+    -- | InstRArr
     ATyArrow a1 a2 -> do
       (hv1, hv2, ctx') <- setupInstArr ctx alphaHv
       theta <- instantiateL ctx' hv1 a1

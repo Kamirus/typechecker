@@ -3,6 +3,8 @@ module Language.Term where
 import Protolude hiding (Type)
 
 import Data.Fix (Fix (..))
+import Data.String (fromString)
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
 import Language.Type (Type)
 
@@ -35,3 +37,9 @@ eAnn e ty = Fix $ EAnn e ty
 
 newtype Var = Var { fromVar :: Text }
   deriving (Eq, Show, Ord)
+
+instance IsString Var where
+  fromString = Var . fromString
+
+instance Pretty Var where
+  pretty = pretty . fromVar

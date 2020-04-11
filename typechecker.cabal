@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5e0429c8b53c96a390d8c7b97d7a6f844bf3a16510bdfa1dd58c9994cb8723da
+-- hash: 550a457d394bac35a1a2de85937f58cca742e824b190a7132e30d1e44e4e5103
 
 name:           typechecker
 version:        0.1.0.0
@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Language.PPrint
       Language.Term
       Language.Type
       Language.TypeChecker.Context
@@ -44,6 +45,7 @@ library
     , containers
     , data-fix
     , microlens-platform
+    , prettyprinter
     , protolude
   default-language: Haskell2010
 
@@ -59,6 +61,7 @@ executable typechecker-exe
     , containers
     , data-fix
     , microlens-platform
+    , prettyprinter
     , protolude
     , typechecker
   default-language: Haskell2010
@@ -67,15 +70,19 @@ test-suite typechecker-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Test
+      Test.Utils
       Paths_typechecker
   hs-source-dirs:
       test
+  default-extensions: ConstraintKinds DataKinds DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable DerivingStrategies EmptyDataDecls FlexibleContexts KindSignatures LambdaCase MultiParamTypeClasses NoImplicitPrelude OverloadedStrings PatternGuards PatternSynonyms RankNTypes RecordWildCards ScopedTypeVariables TupleSections
   ghc-options: -Weverything -Wno-unsafe -Wno-safe -Wno-missing-import-lists -Wno-missing-export-lists -Wno-missing-local-signatures -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , containers
     , data-fix
     , microlens-platform
+    , prettyprinter
     , protolude
     , typechecker
   default-language: Haskell2010

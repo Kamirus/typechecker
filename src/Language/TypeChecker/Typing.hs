@@ -5,6 +5,7 @@ import Protolude hiding (check)
 
 import Data.Fix
 
+import Language.PPrint
 import Language.Term
 import Language.TypeChecker.Context
 import Language.TypeChecker.SubTyping
@@ -12,7 +13,7 @@ import Language.TypeChecker.Types
 
 -- | Under input context Γ, e checks against input type A and outputs context ∆
 check :: MonadCheck m => Context -> Term -> AlgoType -> m Context
-check ctx _e@(Fix expr) _A@(Fix _a) = go expr _a
+check ctx _e@(Fix expr) _A@(Fix _a) = logCheck *> go expr _a
   where
     -- | →I
     go (EAbs x e) (ATyArrow a b) = check (CtxAnn x a +: ctx) e b
@@ -25,9 +26,12 @@ check ctx _e@(Fix expr) _A@(Fix _a) = go expr _a
       (theta, a) <- infer ctx _e
       subtype theta (theta `substHv` a) (theta `substHv` _A)
 
+    logCheck = traceShowM $
+      "DEBUG: check" <+> pp' ctx <+> pp' _e <+> pp' _A
+
 -- | Under input context Γ, e synthesizes output type A and outputs context ∆
 infer :: MonadCheck m => Context -> Term -> m (Context, AlgoType)
-infer ctx _e@(Fix expr) = case expr of
+infer ctx _e@(Fix expr) = logInfer *> case expr of
   -- | Var
   EVar v -> do
     a <- lookupVar' v ctx
@@ -56,6 +60,7 @@ infer ctx _e@(Fix expr) = case expr of
   EApp e1 e2 -> do
     (theta, a) <- infer ctx e1
     inferApp theta (theta `substHv` a) e2
+  where logInfer = traceShowM $ "DEBUG: infer" <+> pp' ctx <+> pp' _e
 
 -- | Under input context Γ, applying a function of type A to e
 -- | synthesizes type C and outputs context ∆
