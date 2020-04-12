@@ -12,6 +12,7 @@ import           Prelude (error)
 import Language.PPrint
 import Language.Term
 import Language.Type
+import Language.TypeChecker.Monad
 import Language.TypeChecker.Types
 import Language.Utils (splitOn)
 

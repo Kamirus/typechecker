@@ -67,6 +67,7 @@ dependencies:
 - protolude
 - microlens-platform
 - prettyprinter
+- dlist
 name: typechecker
 version: 0.1.0.0
 extra-source-files:

@@ -121,24 +121,6 @@ data ContextElem
   deriving (Eq, Show)
 
 
-type MonadCheck m = (MonadError Text m, MonadState Int m)
-
-runMonadCheck :: ExceptT Text (StateT Int Identity) a -> Either Text a
-runMonadCheck m = evalState (runExceptT m) 0
-
-throw :: MonadError Text m => Text -> m a
-throw = throwError
-
--- | Create a new existential variable out of a type variable
-freshHv :: MonadCheck m => TypeVar -> m HatVar
-freshHv tv = do
-  uid <- get
-  put $ 1 + uid
-  return $ HatVar tv uid
-
-freshHv' :: MonadCheck m => m HatVar
-freshHv' = freshHv $ TypeVar "t"
-
 class HasAllVars a where
   allVars :: a -> AllVars
 

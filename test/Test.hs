@@ -14,9 +14,6 @@ id = "x" ~> "x"
 id_ann = ("x" ~> "x") `eAnn` forAll "a" ("a" --> "a")
 const = "x" ~> "y" ~> "x"
 flip_const = "y" ~> "x" ~> "x"
-const_ann = eAnn
-  ("x" ~> "y" ~> "x")
-  $ forAll "a" $ forAll "b" ("a" --> "b" --> "a")
 
 --------------------------------------------------------------------------------
 -- Rank 2 Types

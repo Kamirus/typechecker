@@ -8,6 +8,7 @@ import Data.Fix
 import Language.PPrint
 import Language.Term
 import Language.TypeChecker.Context
+import Language.TypeChecker.Monad
 import Language.TypeChecker.SubTyping
 import Language.TypeChecker.Types
 

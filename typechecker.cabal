@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 550a457d394bac35a1a2de85937f58cca742e824b190a7132e30d1e44e4e5103
+-- hash: b95aee341f72d92550a498f3bd93783f7f0b5ed0f989970ad3189e2071ca201d
 
 name:           typechecker
 version:        0.1.0.0
@@ -44,6 +44,7 @@ library
       base >=4.7 && <5
     , containers
     , data-fix
+    , dlist
     , microlens-platform
     , prettyprinter
     , protolude
@@ -60,6 +61,7 @@ executable typechecker-exe
       base >=4.7 && <5
     , containers
     , data-fix
+    , dlist
     , microlens-platform
     , prettyprinter
     , protolude
@@ -81,6 +83,7 @@ test-suite typechecker-test
       base >=4.7 && <5
     , containers
     , data-fix
+    , dlist
     , microlens-platform
     , prettyprinter
     , protolude

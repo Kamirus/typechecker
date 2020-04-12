@@ -8,6 +8,7 @@ import Data.Fix
 import Language.PPrint
 import Language.Type
 import Language.TypeChecker.Context
+import Language.TypeChecker.Monad
 import Language.TypeChecker.Types
 
 -- | Checks whether under input context `ctx`, type A is a subtype of B
