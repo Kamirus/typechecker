@@ -1,12 +1,13 @@
 module Test where
 
-import Protolude hiding (const)
+import Protolude hiding (const, log)
 import Prelude (error)
 
 import Language.Term
 import Language.Type
 import Language.TypeChecker.Types
 import Language.TypeChecker.Typing
+import Language.TypeChecker.Monad
 import Language.PPrint
 import Test.Utils
 
@@ -31,7 +32,9 @@ flip_const = "y" ~> "x" ~> "x"
 
 go :: Term -> IO ()
 go e = do
-  (ctx, aty) <- either (error . show) pure $ runMonadCheck $ typecheck e
+  let (m, log) = runMonadCheck $ typecheck e
+  print $ ppLog log
+  (ctx, aty) <- either (error . show) pure m
   print $ ppCtx ctx
   print $ ppTerm e
   print $ ppAlgoType aty

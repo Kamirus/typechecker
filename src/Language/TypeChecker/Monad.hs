@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoMonomorphismRestriction  #-}
 module Language.TypeChecker.Monad where
 
 import Protolude
@@ -13,16 +12,19 @@ import Language.TypeChecker.Types
 
 type MonadCheck m =
   ( MonadError Text m
-  , MonadState Int m
+  , MonadState CheckState m
   , MonadLogger m
   )
 
-newtype CheckM a = CheckM
-  { runCheckM :: ExceptT Text (StateT (Int, Log) Identity) a }
-  deriving (Functor, Applicative, Monad, MonadError Text, MonadState (Int, Log))
+type CheckState = (Int, Log)
 
-runMonadCheck :: CheckM a -> Either Text a
-runMonadCheck m = evalState (runExceptT $ runCheckM m) (0, Log mempty mempty)
+newtype CheckM a = CheckM
+  { runCheckM :: ExceptT Text (StateT CheckState Identity) a }
+  deriving (Functor, Applicative, Monad, MonadError Text, MonadState CheckState)
+
+runMonadCheck :: CheckM a -> (Either Text a, Log)
+runMonadCheck m = (a, l)
+  where (a, (_, l)) = runState (runExceptT $ runCheckM m) (0, Log mempty mempty)
 
 throw :: MonadError Text m => Text -> m a
 throw = throwError
@@ -30,8 +32,8 @@ throw = throwError
 -- | Create a new existential variable out of a type variable
 freshHv :: MonadCheck m => TypeVar -> m HatVar
 freshHv tv = do
-  uid <- get
-  put $ 1 + uid
+  s@(uid, _) <- get
+  put $ s & _1 %~ succ
   return $ HatVar tv uid
 
 freshHv' :: MonadCheck m => m HatVar
@@ -45,7 +47,7 @@ data LogLevel
   | LogWarn
 
 class MonadLogger m where
-  logg :: LogLevel -> Text -> m ()
+  logg :: LogLevel -> Doc () -> m ()
 
 instance MonadLogger CheckM where
   logg lvl msg = case lvl of
@@ -53,22 +55,25 @@ instance MonadLogger CheckM where
     LogWarn -> go _warn
     where go _field = modify $ _2 . _field %~ (`DL.snoc` msg)
 
-logInfo :: MonadLogger m => Text -> m ()
+logInfo :: MonadLogger m => LogItem -> m ()
 logInfo = logg LogInfo
 
-logWarn :: MonadLogger m => Text -> m ()
+logWarn :: MonadLogger m => LogItem -> m ()
 logWarn = logg LogWarn
 
+type LogItem = Doc ()
+
 data Log = Log
-  { infoLog :: DL.DList Text
-  , warnLog :: DL.DList Text
+  { infoLog :: DL.DList LogItem
+  , warnLog :: DL.DList LogItem
   } deriving (Show)
-_info :: Lens' Log (DL.DList Text)
+
+_info :: Lens' Log (DL.DList LogItem)
 _info = lens infoLog (\s a -> s { infoLog = a })
-_warn :: Lens' Log (DL.DList Text)
+
+_warn :: Lens' Log (DL.DList LogItem)
 _warn = lens warnLog (\s a -> s { warnLog = a })
 
-instance Pretty Log where
-  pretty (Log info warn) = go "INFO:" info <+> line <+> go "WARN:" warn
-    where
-    go header = foldl (\acc x -> acc <+> header <+> pretty x <+> line) mempty
+ppLog :: Log -> Doc ()
+ppLog (Log info warn) = go "INFO:" info <+> line <+> go "WARN:" warn
+  where go header = foldl (\acc x -> acc <+> header <+> x <+> line) mempty

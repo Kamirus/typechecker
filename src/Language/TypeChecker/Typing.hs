@@ -15,14 +15,14 @@ import Language.TypeChecker.Types
 typecheck :: MonadCheck m => Term -> m (Context, AlgoType)
 typecheck e = do
   (ctx', a') <- infer mempty e
-  traceShowM $ pp ctx'
+  logInfo $ pp' ctx'
   let ctx = solve ctx'
   let a = ctx `substHv` a'
   pure (ctx, a)
 
 -- | Under input context Γ, e checks against input type A and outputs context ∆
 check :: MonadCheck m => Context -> Term -> AlgoType -> m Context
-check ctx _e@(Fix expr) _A@(Fix _a) = logCheck *> go expr _a
+check ctx _e@(Fix expr) _A@(Fix _a) = logInfo msg *> go expr _a
   where
     -- | →I
     go (EAbs x e) (ATyArrow a b) = check (CtxAnn x a +: ctx) e b
@@ -35,12 +35,11 @@ check ctx _e@(Fix expr) _A@(Fix _a) = logCheck *> go expr _a
       (theta, a) <- infer ctx _e
       subtype theta (theta `substHv` a) (theta `substHv` _A)
 
-    logCheck = traceShowM $
-      "DEBUG: check" <+> pp' ctx <+> pp' _e <+> pp' _A
+    msg = "check" <+> pp' ctx <+> pp' _e <+> pp' _A
 
 -- | Under input context Γ, e synthesizes output type A and outputs context ∆
 infer :: MonadCheck m => Context -> Term -> m (Context, AlgoType)
-infer ctx _e@(Fix expr) = logInfer *> case expr of
+infer ctx _e@(Fix expr) = logInfo msg *> case expr of
   -- | Var
   EVar v -> do
     a <- lookupVar' v ctx
@@ -69,12 +68,13 @@ infer ctx _e@(Fix expr) = logInfer *> case expr of
   EApp e1 e2 -> do
     (theta, a) <- infer ctx e1
     inferApp theta (theta `substHv` a) e2
-  where logInfer = traceShowM $ "DEBUG: infer" <+> pp' ctx <+> pp' _e
+  
+  where msg = "infer" <+> pp' ctx <+> pp' _e
 
 -- | Under input context Γ, applying a function of type A to e
 -- | synthesizes type C and outputs context ∆
 inferApp :: MonadCheck m => Context -> AlgoType -> Term -> m (Context, AlgoType)
-inferApp ctx _A@(Fix _a) e = go _a
+inferApp ctx _A@(Fix _a) e = logInfo msg *> go _a
   where
     -- | ∀App
     go (ATyForAll tv a) = do
@@ -93,3 +93,5 @@ inferApp ctx _A@(Fix _a) e = go _a
       pure (delta, atyHatVar hv2)
 
     go (ATyVar _) = throw "inferApp unreachable"
+
+    msg = "inferApp" <+> pp' ctx <+> pp' _A <+> pp' e

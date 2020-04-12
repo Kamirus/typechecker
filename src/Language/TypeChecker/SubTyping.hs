@@ -14,7 +14,7 @@ import Language.TypeChecker.Types
 -- | Checks whether under input context `ctx`, type A is a subtype of B
 -- | and returns an output context (delta)
 subtype :: MonadCheck m => Context -> AlgoType -> AlgoType -> m Context
-subtype ctx (Fix _A) (Fix _B) = logSubtype *> go _A _B
+subtype ctx (Fix _A) (Fix _B) = logInfo msg *> go _A _B
   where
     -- | <: Var
     go (ATyVar tv) (ATyVar tv') | tv == tv', ctx `has` CtxTypeVar tv = pure ctx
@@ -63,11 +63,10 @@ subtype ctx (Fix _A) (Fix _B) = logSubtype *> go _A _B
       ctx `assertHas` CtxHatVar hv
       assert $ hv `NotIn` avHatVars (allVars $ Fix a)
 
-    logSubtype = traceShowM $
-      "DEBUG: subtype" <+> pp' ctx <+> pp' (Fix _A) <+> pp' (Fix _B)
+    msg = "subtype" <+> pp' ctx <+> pp' (Fix _A) <+> pp' (Fix _B)
 
 instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
-instantiateL ctx alphaHv aty = catchError
+instantiateL ctx alphaHv aty = (logInfo msg *> ) $ catchError
   -- | InstLSolve
   (algoToMonoType' aty >>= instLSolve ctx alphaHv)
   $ const $ case unFix aty of
@@ -87,11 +86,10 @@ instantiateL ctx alphaHv aty = catchError
 
     ATyVar _ -> throw "unreachable - type variable is a mono type"
 
-algoToMonoType' :: MonadCheck m => AlgoType -> m AlgoMonoType
-algoToMonoType' aty = maybe (throw "not mono") pure $ algoToMonoType aty
+  where msg = "instantiateL" <+> pp' ctx <+> pretty alphaHv <+> pp' aty
 
 instantiateR ::  MonadCheck m => Context -> AlgoType -> HatVar -> m Context
-instantiateR ctx aty alphaHv = catchError
+instantiateR ctx aty alphaHv = (logInfo msg *> ) $ catchError
   -- | InstRSolve
   (algoToMonoType' aty >>= instLSolve ctx alphaHv)
   $ const $ case unFix aty of
@@ -115,6 +113,7 @@ instantiateR ctx aty alphaHv = catchError
 
     ATyVar _ -> throw "unreachable - type variable is a mono type"
 
+  where msg = "instantiateR" <+> pp' ctx <+> pretty alphaHv <+> pp' aty
 
 instLSolve :: MonadCheck m => Context -> HatVar -> AlgoMonoType -> m Context
 instLSolve ctx alphaHv tau = do
@@ -145,6 +144,8 @@ setupInstArr ctx alphaHv = do
       +: mempty
   pure (hv1, hv2, ctx')
 
+algoToMonoType' :: MonadCheck m => AlgoType -> m AlgoMonoType
+algoToMonoType' aty = maybe (throw "not mono") pure $ algoToMonoType aty
 
 assertIn :: (MonadCheck m, Show a, Show b) => a -> b -> Maybe c -> m c
 assertIn a b = maybe (a `throwNotIn` b) pure
