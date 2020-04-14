@@ -97,7 +97,7 @@ instance Ord HatVar where
 
 instance Pretty HatVar where
   -- pretty = ("hv_" <>) . pretty . hvVar
-  pretty (HatVar tv i) = pretty tv <> pretty i
+  pretty (HatVar tv i) = "_" <> pretty tv <> pretty i
 
 -- | Context is an ordered structure - list, without duplicates.
 -- |

@@ -17,8 +17,8 @@ forAll :: IsType a => Text -> a -> Type
 forAll tv a = tyForAll (TypeVar tv) (toType a)
 
 infixl 9 @@
-(@@) :: Term -> Term -> Term
-(@@) = eApp
+(@@) :: (IsTerm a, IsTerm b) => a -> b -> Term
+e @@ e' = toTerm e `eApp` toTerm e'
 
 infixr 1 ~>
 (~>) :: IsTerm a => Var -> a -> Term

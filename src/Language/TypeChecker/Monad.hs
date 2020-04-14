@@ -24,7 +24,9 @@ newtype CheckM a = CheckM
 
 runMonadCheck :: CheckM a -> (Either Text a, Log)
 runMonadCheck m = (a, l)
-  where (a, (_, l)) = runState (runExceptT $ runCheckM m) (0, Log mempty mempty)
+  where
+    (a, (_, l)) = runState (runExceptT $ runCheckM m') (0, Log mempty mempty)
+    m' = catchError m $ \e -> logWarn (pretty e) >> throwError e
 
 throw :: MonadError Text m => Text -> m a
 throw = throwError
@@ -75,5 +77,5 @@ _warn :: Lens' Log (DL.DList LogItem)
 _warn = lens warnLog (\s a -> s { warnLog = a })
 
 ppLog :: Log -> Doc ()
-ppLog (Log info warn) = go "INFO:" info <+> line <+> go "WARN:" warn
+ppLog (Log info warn) = go "INFO:" info <+> line <> go "WARN:" warn
   where go header = foldl (\acc x -> acc <+> header <+> x <+> line) mempty

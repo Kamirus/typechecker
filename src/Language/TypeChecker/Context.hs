@@ -164,7 +164,7 @@ hole gamma el = holeWith (== el) gamma
 
 -- | Similar to `hole` but throws an error if a hole wasn't found
 hole_ :: MonadCheck m => Context -> ContextElem -> m (Context, ContextElem, Context)
-hole_ gamma el = maybe (el `throwNotIn` gamma) pure $ hole gamma el
+hole_ gamma el = maybe (pp el `throwNotIn` pp' gamma) pure $ hole gamma el
 
 holeWith
   :: (ContextElem -> Bool) -> Context -> Maybe (Context, ContextElem, Context)
@@ -178,7 +178,7 @@ notHas :: Context -> ContextElem -> Bool
 notHas ctx = not . has ctx
 
 assertHas :: MonadCheck m => Context -> ContextElem -> m ()
-ctx `assertHas` e = unless (ctx `has` e) (throwNotIn e ctx)
+ctx `assertHas` e = unless (ctx `has` e) (pp e `throwNotIn` pp' ctx)
 
 -- | Looks for a solved constraint  \hat{alpha} = tau  in the context
 findSolutionTo :: HatVar -> Context -> Maybe AlgoMonoType
@@ -190,7 +190,7 @@ findSolutionTo hv = getCtx >>> \case
 
 lookupVar' :: MonadCheck m => Var -> Context -> m AlgoType
 lookupVar' v ctx = maybe err pure $ lookupVar v ctx
-  where err = throwNotIn (pretty v) (pp' ctx)
+  where err = pretty v `throwNotIn` pp' ctx
 
 lookupVar :: Var -> Context -> Maybe AlgoType
 lookupVar v = getCtx >>> \case
@@ -199,14 +199,19 @@ lookupVar v = getCtx >>> \case
   _ : gamma -> lookupVar v $ Ctx gamma
 
 data CtxAssert where
-  NotIn ::(Show a, Ord a) => a -> Set a -> CtxAssert
+  NotIn ::(Pretty a, Ord a) => a -> Set a -> CtxAssert
+  In ::(Pretty a, Ord a) => a -> Set a -> CtxAssert
   NoHole ::Context -> ContextElem -> CtxAssert
   -- ^ `NoHole ctx el` asserts that there is no element `el` in the `ctx`
 
 assert :: MonadCheck m => CtxAssert -> m ()
 assert = \case
-  a `NotIn` s -> when (S.member a s) (throwIn a s)
-  ctx `NoHole` el -> when (isJust $ hole ctx el) (throwIn el ctx)
+  a `NotIn` s -> when (S.member a s)
+    (throwIn (pretty a) (prettyList $ S.toList s))
+  a `In` s -> when (S.notMember a s)
+    (throwNotIn (pretty a) (prettyList $ S.toList s))
+  ctx `NoHole` el -> when (isJust $ hole ctx el)
+    (throw $ show $ "hole found" <+> pp el <+> pp' ctx)
 
 _throwWithBin :: (MonadError Text m, Show a, Show b) => Text -> a -> b -> m c
 _throwWithBin msg x xs = throw $ show x <> msg <> show xs

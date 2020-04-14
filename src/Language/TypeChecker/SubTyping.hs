@@ -113,7 +113,7 @@ instantiateR ctx aty alphaHv = (logInfo msg *> ) $ catchError
 
     ATyVar _ -> throw "unreachable - type variable is a mono type"
 
-  where msg = "instantiateR" <+> pp' ctx <+> pretty alphaHv <+> pp' aty
+  where msg = "instantiateR" <+> pp' ctx <+> pp' aty <+> pretty alphaHv
 
 instLSolve :: MonadCheck m => Context -> HatVar -> AlgoMonoType -> m Context
 instLSolve ctx alphaHv tau = do
@@ -146,9 +146,6 @@ setupInstArr ctx alphaHv = do
 
 algoToMonoType' :: MonadCheck m => AlgoType -> m AlgoMonoType
 algoToMonoType' aty = maybe (throw "not mono") pure $ algoToMonoType aty
-
-assertIn :: (MonadCheck m, Show a, Show b) => a -> b -> Maybe c -> m c
-assertIn a b = maybe (a `throwNotIn` b) pure
 
 eqConstraint :: HatVar -> AlgoMonoType -> Context
 hv `eqConstraint` tau = Ctx $ pure $ CtxConstraint hv tau
