@@ -107,7 +107,7 @@ goSubstToAlgo ctx = \case
   -- | lookup \hat{alpha} in the context
   AHatVar hv -> case findSolutionTo hv ctx of
     -- | found a solved constraint: replace \hat{alpha} with its solution
-    Just mty -> monoToAlgoType mty
+    Just mty -> substHv ctx $ monoToAlgoType mty
     -- | not found, but do a sanity check that \hat{alpha} is in the context
     Nothing  -> assertInCtxAndReturn hv
   -- | Recursive case

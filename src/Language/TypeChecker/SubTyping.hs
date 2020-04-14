@@ -14,7 +14,7 @@ import Language.TypeChecker.Types
 -- | Checks whether under input context `ctx`, type A is a subtype of B
 -- | and returns an output context (delta)
 subtype :: MonadCheck m => Context -> AlgoType -> AlgoType -> m Context
-subtype ctx (Fix _A) (Fix _B) = logInfo msg *> go _A _B
+subtype ctx (Fix _A) (Fix _B) = logInfoWithIndent msg $ go _A _B
   where
     -- | <: Var
     go (ATyVar tv) (ATyVar tv') | tv == tv', ctx `has` CtxTypeVar tv = pure ctx
@@ -66,7 +66,7 @@ subtype ctx (Fix _A) (Fix _B) = logInfo msg *> go _A _B
     msg = "subtype" <+> pp' ctx <+> pp' (Fix _A) <+> pp' (Fix _B)
 
 instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
-instantiateL ctx alphaHv aty = (logInfo msg *> ) $ catchError
+instantiateL ctx alphaHv aty = logInfoWithIndent msg $ catchError
   -- | InstLSolve
   (algoToMonoType' aty >>= instLSolve ctx alphaHv)
   $ const $ case unFix aty of
@@ -89,7 +89,7 @@ instantiateL ctx alphaHv aty = (logInfo msg *> ) $ catchError
   where msg = "instantiateL" <+> pp' ctx <+> pretty alphaHv <+> pp' aty
 
 instantiateR ::  MonadCheck m => Context -> AlgoType -> HatVar -> m Context
-instantiateR ctx aty alphaHv = (logInfo msg *> ) $ catchError
+instantiateR ctx aty alphaHv = logInfoWithIndent msg $ catchError
   -- | InstRSolve
   (algoToMonoType' aty >>= instLSolve ctx alphaHv)
   $ const $ case unFix aty of

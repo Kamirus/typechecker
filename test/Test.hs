@@ -20,6 +20,8 @@ omega = "x" ~> "x" @@ "x"
 omegaTy1 = eAnn
   ("x" ~> "x" @@ "x")
   $ (forAll "a" ("a" --> "a")) --> forAll "a" ("a" --> "a")
+omegaTy2 = "x" ~> annX @@ "x"
+  where annX = "x" `ann` (forAll "a" $ forAll "b" $ "a" --> "b")
 
 --------------------------------------------------------------------------------
 -- Rank 2 Types

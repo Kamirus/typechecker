@@ -22,7 +22,7 @@ typecheck e = do
 
 -- | Under input context Γ, e checks against input type A and outputs context ∆
 check :: MonadCheck m => Context -> Term -> AlgoType -> m Context
-check ctx _e@(Fix expr) _A@(Fix _a) = logInfo msg *> go expr _a
+check ctx _e@(Fix expr) _A@(Fix _a) = logInfoWithIndent msg $ go expr _a
   where
     -- | →I
     go (EAbs x e) (ATyArrow a b) = check (CtxAnn x a +: ctx) e b
@@ -39,7 +39,7 @@ check ctx _e@(Fix expr) _A@(Fix _a) = logInfo msg *> go expr _a
 
 -- | Under input context Γ, e synthesizes output type A and outputs context ∆
 infer :: MonadCheck m => Context -> Term -> m (Context, AlgoType)
-infer ctx _e@(Fix expr) = logInfo msg *> case expr of
+infer ctx _e@(Fix expr) = logInfoWithIndent msg $ case expr of
   -- | Var
   EVar v -> do
     a <- lookupVar' v ctx
@@ -74,7 +74,7 @@ infer ctx _e@(Fix expr) = logInfo msg *> case expr of
 -- | Under input context Γ, applying a function of type A to e
 -- | synthesizes type C and outputs context ∆
 inferApp :: MonadCheck m => Context -> AlgoType -> Term -> m (Context, AlgoType)
-inferApp ctx _A@(Fix _a) e = logInfo msg *> go _a
+inferApp ctx _A@(Fix _a) e = logInfoWithIndent msg $ go _a
   where
     -- | ∀App
     go (ATyForAll tv a) = do

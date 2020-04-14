@@ -9,12 +9,14 @@ import Language.Term
 import Language.Type
 
 infixr 1 -->
--- (-->) :: Type -> Type -> Type
 (-->) :: (IsType a, IsType b) => a -> b -> Type
 a --> b = toType a `tyArrow` toType b
 
 forAll :: IsType a => Text -> a -> Type
 forAll tv a = tyForAll (TypeVar tv) (toType a)
+
+ann :: (IsTerm e, IsType a) => e -> a -> Term
+e `ann` a = toTerm e `eAnn` toType a
 
 infixl 9 @@
 (@@) :: (IsTerm a, IsTerm b) => a -> b -> Term
