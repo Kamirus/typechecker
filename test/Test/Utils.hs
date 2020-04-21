@@ -8,13 +8,14 @@ import Protolude hiding (Type)
 import Language.Term
 import Language.Type
 
-infixr 1 -->
+infixr 2 -->
 (-->) :: (IsType a, IsType b) => a -> b -> Type
 a --> b = toType a `tyArrow` toType b
 
 forAll :: IsType a => Text -> a -> Type
 forAll tv a = tyForAll (TypeVar tv) (toType a)
 
+infixl 1 `ann`
 ann :: (IsTerm e, IsType a) => e -> a -> Term
 e `ann` a = toTerm e `eAnn` toType a
 
@@ -37,7 +38,7 @@ z = var "z"
 class IsType a where
   toType :: a -> Type
 
-instance IsType Type where
+instance {-# OVERLAPPABLE #-} IsType Type where
   toType = identity
 
 instance a ~ Text => IsType a where
@@ -47,7 +48,7 @@ instance a ~ Text => IsType a where
 class IsTerm a where
   toTerm :: a -> Term
 
-instance IsTerm Term where
+instance {-# OVERLAPPABLE #-} IsTerm Term where
   toTerm = identity
 
 instance a ~ Text => IsTerm a where

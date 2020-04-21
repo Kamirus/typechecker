@@ -1,6 +1,6 @@
 module Test where
 
-import Protolude hiding (const, log)
+import Protolude hiding (const, log, fst, snd)
 import Prelude (error)
 
 import Language.Term
@@ -23,6 +23,51 @@ omegaTy1 = eAnn
 omegaTy2 = "x" ~> annX @@ "x"
   where annX = "x" `ann` (forAll "a" $ forAll "b" $ "a" --> "b")
 
+impredTest1Ty = forAll "int"
+  $   ((forAll "a" $ "a" --> "a") --> "int")
+  --> (forAll "b" $ "int" --> "b" --> "b")
+  --> "int"
+  --> "int"
+impredTest1 = ann
+  ("foo" ~> "bar" ~> "x" ~> "foo" @@ ("bar" @@ "x"))
+  $ impredTest1Ty
+impredTest2 = ann
+  ("compose" ~> "foo" ~> "bar" ~> "compose" @@ "foo" @@ "bar")
+  $ forAll "p"
+  $ forAll "q"
+  $ forAll "r"
+  $ (("q" --> "r") --> ("p" --> "q") --> "p" --> "r")
+    --> impredTest1Ty
+
+
+-- data Nat = Suc Nat | Zero
+tyNat = forAll "r" $ ("r" --> "r") --> "r" --> "r"
+
+natZero' = "s" ~> "z" ~> "z"
+natZero = natZero' `ann` tyNat
+
+natSuc' = "n" ~> "s" ~> "z" ~> "s" @@ ("n" @@ "s" @@ "z")
+natSucWrongAnnot = natSuc' `ann` tyNat
+natSuc = natSuc' `ann` tyNat --> tyNat
+
+natMul' = "n1" ~> "n2" ~> "s" ~> "z" ~> "n1" @@ ("n" ~> "n2" @@ "s" @@ "n") @@ "z"
+natMul = natMul' `ann` tyNat --> tyNat --> tyNat
+
+
+-- newtype Pair a b = Pair (∀ r. (a → b → r) → r)
+tyPair a b = forAll "r" $ a --> b --> "r"
+tyPairR a b r = a --> b --> r
+
+pair' = "x" ~> "y" ~> "f" ~> "f" @@ "x" @@ "y"
+pair = ann pair' $ forAll "a" $ forAll "b" $ tyPair "a" "b"
+
+-- fst ∷ ∀ a b. Pair a b → a
+fst' = "r" ~> "r" @@ ("x" ~> "y" ~> "x")
+fst = ann fst' $ forAll "a" $ forAll "b" $ tyPair "a" "b" --> "a"
+
+-- snd ∷ ∀ a b. Pair a b → b
+snd' = "r" ~> "r" @@ ("x" ~> "y" ~> "y")
+snd = ann snd' $ forAll "a" $ forAll "b" $ tyPair "a" "b" --> "b"
 --------------------------------------------------------------------------------
 -- Rank 2 Types
 --------------------------------------------------------------------------------

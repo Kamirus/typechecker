@@ -57,7 +57,7 @@ subtype ctx (Fix _A) (Fix _B) = logInfoWithIndent msg $ go _A _B
       checkBeforeInstantiate b hv
       instantiateL ctx hv (Fix b)
 
-    go a b = throw $ "can't subtype :" <> show a <> " <: " <> show b
+    go a b = throw $ show $ "can't subtype :" <> pp' (Fix a) <> " <: " <> pp' (Fix b)
 
     checkBeforeInstantiate a hv = do
       ctx `assertHas` CtxHatVar hv
@@ -69,7 +69,7 @@ instantiateL :: MonadCheck m => Context -> HatVar -> AlgoType -> m Context
 instantiateL ctx alphaHv aty = logInfoWithIndent msg $ catchError
   -- | InstLSolve
   (algoToMonoType' aty >>= instLSolve ctx alphaHv)
-  $ const $ case unFix aty of
+  $ \e -> case unFix aty of
     -- | InstLReach
     AHatVar betaHv -> instLReach ctx alphaHv betaHv
 
@@ -84,15 +84,15 @@ instantiateL ctx alphaHv aty = logInfoWithIndent msg $ catchError
       theta <- instantiateR ctx' b1 hv1
       instantiateL theta hv2 (theta `substHv` b2)
 
-    ATyVar _ -> throw "unreachable - type variable is a mono type"
+    ATyVar _ -> throw e
 
   where msg = "instantiateL" <+> pp' ctx <+> pretty alphaHv <+> pp' aty
 
-instantiateR ::  MonadCheck m => Context -> AlgoType -> HatVar -> m Context
+instantiateR :: MonadCheck m => Context -> AlgoType -> HatVar -> m Context
 instantiateR ctx aty alphaHv = logInfoWithIndent msg $ catchError
   -- | InstRSolve
   (algoToMonoType' aty >>= instLSolve ctx alphaHv)
-  $ const $ case unFix aty of
+  $ \e -> case unFix aty of
     -- | InstRReach
     AHatVar betaHv -> instLReach ctx alphaHv betaHv
 
@@ -111,7 +111,7 @@ instantiateR ctx aty alphaHv = logInfoWithIndent msg $ catchError
       theta <- instantiateL ctx' hv1 a1
       instantiateR theta (theta `substHv` a2) hv2
 
-    ATyVar _ -> throw "unreachable - type variable is a mono type"
+    ATyVar _ -> throw e
 
   where msg = "instantiateR" <+> pp' ctx <+> pp' aty <+> pretty alphaHv
 
