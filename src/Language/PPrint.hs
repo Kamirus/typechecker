@@ -6,7 +6,7 @@ module Language.PPrint
 
 import Protolude hiding (Type)
 
-import Data.Fix (unFix)
+import Data.Fix (Fix (..), unFix)
 import Data.Text.Prettyprint.Doc
 
 import Control.Arrow ((>>>))
@@ -33,8 +33,8 @@ ppType = unFix >>> \case
     TyArrow a b -> ppArrow a b
   where
     ppForAll tv a = "∀" <+> pretty tv <> "." <+> ppType a
-    ppArrow a b = ppWraped a <+> "⟶" <+> ppType b
-    ppWraped = unFix >>> \case
+    ppArrow a b = ppWrapped a <+> "⟶" <+> ppType b
+    ppWrapped = unFix >>> \case
       TyForAll tv a -> "(" <> ppForAll tv a <> ")"
       TyMono mty -> case mty of
         TyVar tv    -> pretty tv
@@ -48,9 +48,12 @@ ppTerm = unFix >>> \case
   EAnn e a -> ppAnn e a
   where
     ppAbs v e  = "λ" <> pretty v <> "." <+> ppTerm e
-    ppApp e e' = ppTerm e <+> ppWraped e'
-    ppAnn e a  = ppWraped e <+> "∷" <+> ppType a
-    ppWraped = unFix >>> \case
+    ppApp e e' = ppWrappedApp e <+> ppWrapped e'
+    ppAnn e a  = ppWrapped e <+> "∷" <+> ppType a
+    ppWrappedApp = unFix >>> \case
+      e@EApp{} -> ppTerm $ Fix e
+      e -> ppWrapped $ Fix e
+    ppWrapped = unFix >>> \case
       EVar v -> pretty v
       EAbs v e -> "(" <> ppAbs v e <> ")"
       EApp e e' -> "(" <> ppApp e e' <> ")"
@@ -64,8 +67,8 @@ ppAlgoType = unFix >>> \case
   ATyForAll tv a -> ppForAll tv a
   where
     ppForAll tv a = "∀" <+> pretty tv <> "." <+> ppAlgoType a
-    ppArrow a b = ppWraped a <+> "⟶" <+> ppAlgoType b
-    ppWraped = unFix >>> \case
+    ppArrow a b = ppWrapped a <+> "⟶" <+> ppAlgoType b
+    ppWrapped = unFix >>> \case
       ATyVar v -> pretty v
       AHatVar hv -> pretty hv
       ATyArrow a b -> "(" <> ppArrow a b <> ")"

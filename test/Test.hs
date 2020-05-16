@@ -20,6 +20,9 @@ omega = "x" ~> "x" @@ "x"
 omegaTy1 = eAnn
   ("x" ~> "x" @@ "x")
   $ (forAll "a" ("a" --> "a")) --> forAll "a" ("a" --> "a")
+
+-- omegaTy2 x = (x :: forall a b. a -> b) x
+-- NOT. Reason: `x : t0` and then `t0 ~ ∀ a b. a ⟶ b`
 omegaTy2 = "x" ~> annX @@ "x"
   where annX = "x" `ann` (forAll "a" $ forAll "b" $ "a" --> "b")
 
@@ -53,6 +56,21 @@ natSuc = natSuc' `ann` tyNat --> tyNat
 natMul' = "n1" ~> "n2" ~> "s" ~> "z" ~> "n1" @@ ("n" ~> "n2" @@ "s" @@ "n") @@ "z"
 natMul = natMul' `ann` tyNat --> tyNat --> tyNat
 
+-- pred n = Nat \s z → fst_ $ unNat n (\p → pair (snd_ p) (s $ snd_ p)) (pair z z)
+natPred' = "n" ~> "s" ~> "z" ~> fst @@
+  ( ("n" `ann` tyNat)
+      @@ ("p" ~> pair @@ (snd @@ "p") @@ ("s" @@ (snd @@ "p")))
+      @@ (pair @@ "z" @@ "z"))
+natPred = natPred' `ann` tyNat --> tyNat
+
+--      ∷ ∀ a b r. NAT → (PAIRR a b r → PAIRR a b r) → PAIRR a b r → PAIRR a b r
+instNat = ann ("n" ~> "n") $ forAll "a" $ forAll "b" $ forAll "r"
+  $ tyNat --> (typ --> typ) --> typ --> typ
+  where typ = tyPairR "a" "b" "r"
+--       ∷ ∀ a b. NAT → (PAIR a b → PAIR a b) → PAIR a b → PAIR a b
+instNat' = ann ("n" ~> "n") $ forAll "a" $ forAll "b"
+  $ tyNat --> (typ --> typ) --> typ --> typ
+  where typ = tyPair "a" "b"
 
 -- newtype Pair a b = Pair (∀ r. (a → b → r) → r)
 tyPair a b = forAll "r" $ a --> b --> "r"
@@ -84,9 +102,14 @@ snd = ann snd' $ forAll "a" $ forAll "b" $ tyPair "a" "b" --> "b"
 
 go :: Term -> IO ()
 go e = do
-  let (m, log) = runMonadCheck $ typecheck e
   print $ ppLog log
-  (ctx, aty) <- either (error . show) pure m
-  print $ ppCtx ctx
+  (ctx, aty, ty) <- either (error . show) pure m
   print $ ppTerm e
+  print $ ppCtx ctx
   print $ ppAlgoType aty
+  print $ ppType ty
+  where
+    (m, log) = runMonadCheck $ do
+      (ctx, aty) <- typecheck e
+      ty <- generalizeTopLevel aty
+      pure (ctx, aty, ty)

@@ -1,12 +1,13 @@
 -- Algorithmic typing
 module Language.TypeChecker.Typing where
 
-import Protolude hiding (check)
+import Protolude hiding (check, Type)
 
 import Data.Fix
 
 import Language.PPrint
 import Language.Term
+import Language.Type
 import Language.TypeChecker.Context
 import Language.TypeChecker.Monad
 import Language.TypeChecker.SubTyping
@@ -19,6 +20,37 @@ typecheck e = do
   let ctx = solve ctx'
   let a = ctx `substHv` a'
   pure (ctx, a)
+
+typecheck' :: MonadCheck m => Term -> m Type
+typecheck' e = do
+  (ctx, a) <- typecheck e
+  logInfo $ pp' ctx
+  logInfo $ pp' a
+  generalizeTopLevel a
+
+-- | Generalize unsolved hat vars renaming and binding them with forall.
+-- | Safe to use only for top-level functions.
+generalizeTopLevel :: MonadCheck m => AlgoType -> m Type
+generalizeTopLevel a = withResetId $ do
+  ctx <- foldM f mempty (avHatVars $ allVars a)
+  let a' = ctx `substHv` a
+  (foldr atyForAll a' $ avTypeVars $ allVars a')
+    & algoToType
+    & maybe (throw "generalize failed: present hatvar") pure
+  where
+    f ctx hv = do
+      id <- freshId
+      let tv = TypeVar $ "a" <> show id
+      -- check tv is not in BTV(a)
+      let cc = CtxConstraint hv $ amtyVar tv
+      pure $ cc +: ctx
+
+    withResetId m = do
+      s <- get
+      put $ (1, snd s)
+      result <- m
+      put s
+      pure result
 
 -- | Under input context Γ, e checks against input type A and outputs context ∆
 check :: MonadCheck m => Context -> Term -> AlgoType -> m Context

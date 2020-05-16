@@ -34,13 +34,17 @@ throw = throwError
 -- | Create a new existential variable out of a type variable
 freshHv :: MonadCheck m => TypeVar -> m HatVar
 freshHv tv = do
-  s@(uid, _) <- get
-  put $ s & _1 %~ succ
+  uid <- freshId
   return $ HatVar tv uid
 
 freshHv' :: MonadCheck m => m HatVar
 freshHv' = freshHv $ TypeVar "t"
 
+freshId :: MonadCheck m => m Int
+freshId = do
+  s@(uid, _) <- get
+  put $ s & _1 %~ succ
+  return uid
 
 -- Logger
 
@@ -71,6 +75,7 @@ logWarn = logg LogWarn
 withIndent :: MonadLogger m => m a -> m a
 withIndent m = modifyIndent succ *> m <* modifyIndent pred
 
+logInfoWithIndent :: MonadLogger m => LogItem -> m a -> m a
 logInfoWithIndent msg m = logInfo msg *> withIndent m
 
 type LogItem = Doc ()

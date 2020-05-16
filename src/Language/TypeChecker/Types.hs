@@ -36,6 +36,9 @@ atyArrow t = fixA . TyMono . TyArrow t
 atyVar :: TypeVar -> AlgoType
 atyVar = fixA . TyMono . TyVar
 
+amtyVar :: TypeVar -> AlgoMonoType
+amtyVar = fixA . TyVar
+
 atyHatVar :: HatVar -> Fix (AlgoTypeF f)
 atyHatVar = Fix . AHatVar
 
@@ -60,6 +63,13 @@ algoToMonoType = cata go
       AHatVar hv -> Just $ Fix $ AHatVar hv
       ATyArrow a b -> wrap $ TyArrow <$> a <*> b
       ATyForAll{} -> Nothing
+
+algoToType :: AlgoType -> Maybe Type
+algoToType = cata $ \case
+  ATyVar tv -> Just $ tyVar tv
+  AHatVar _ -> Nothing
+  ATyArrow a b -> tyArrow <$> a <*> b
+  ATyForAll tv a -> tyForAll tv <$> a
 
 typeToAlgoType :: Type -> AlgoType
 typeToAlgoType = cata go
